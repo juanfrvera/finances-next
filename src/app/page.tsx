@@ -41,6 +41,9 @@ function Item(data) {
   if (data.type === 'debt') {
     return <Debt {...data} />;
   }
+  if (data.type === 'service') {
+    return <Service {...data} />;
+  }
   return (
     <Card>
       <pre>{JSON.stringify(data, null, 2)}</pre>
@@ -93,6 +96,23 @@ function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }) {
         <div className="text-lg font-semibold text-center">{message}</div>
       </div>
       <pre>{JSON.stringify({ description, withWho, amount, currency, theyPayMe, ...rest }, null, 2)}</pre>
+    </Card>
+  );
+}
+
+function Service({ name, cost, currency, isManual, ...rest }) {
+  return (
+    <Card>
+      <div className="flex flex-col items-center">
+        <h2 className="text-lg font-semibold mb-1 text-center">{name}</h2>
+        <div className="text-base font-medium mb-2 text-center">
+          {Number(cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+        </div>
+        <div className="text-sm text-gray-600 mb-2 text-center">
+          {isManual ? 'Manual payment' : 'Payment is automatic'}
+        </div>
+      </div>
+      <pre>{JSON.stringify({ name, cost, currency, isManual, ...rest }, null, 2)}</pre>
     </Card>
   );
 }
