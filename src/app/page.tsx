@@ -38,6 +38,9 @@ function Item(data) {
   if (data.type === 'currency') {
     return <Currency {...data} />;
   }
+  if (data.type === 'debt') {
+    return <Debt {...data} />;
+  }
   return (
     <Card>
       <pre>{JSON.stringify(data, null, 2)}</pre>
@@ -71,6 +74,25 @@ function Currency(data) {
           <span className="text-base font-normal ml-1">{data.currency}</span>
         </div>
       </div>
+      <pre>{JSON.stringify(data, null, 2)}</pre>
+    </Card>
+  );
+}
+
+function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }) {
+  let message = "";
+  if (theyPayMe) {
+    message = `${withWho} owes you ${amount} ${currency}.`;
+  } else {
+    message = `You owe ${amount} ${currency} to ${withWho}.`;
+  }
+  return (
+    <Card>
+      <div className="flex flex-col items-center">
+        <div className="text-base mb-2 text-center">{description}</div>
+        <div className="text-lg font-semibold text-center">{message}</div>
+      </div>
+      <pre>{JSON.stringify({ description, withWho, amount, currency, theyPayMe, ...rest }, null, 2)}</pre>
     </Card>
   );
 }
