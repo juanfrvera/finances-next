@@ -9,6 +9,21 @@ interface DashboardClientProps {
     items: any[];
 }
 
+// Helper function to format money with smaller decimals
+function formatMoney(amount: number) {
+    const parts = Number(amount).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).split('.');
+
+    return (
+        <>
+            {parts[0]}
+            {parts[1] && <span className="text-sm">.{parts[1]}</span>}
+        </>
+    );
+}
+
 export default function DashboardClient({ items }: DashboardClientProps) {
     const [clientItems, setClientItems] = useState<any[]>(items);
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
@@ -132,7 +147,7 @@ function Account({ data, showJson }: any) {
         <div className="flex flex-col items-center">
             <h2 className="text-lg font-semibold mb-2 text-center">{data.name}</h2>
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center">
-                {Number(data.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatMoney(data.balance)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
@@ -179,7 +194,7 @@ function Currency({ data, showJson }: any) {
                 </button>
             </div>
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center mb-2">
-                {Number(data.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatMoney(data.value)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
             {breakdown.length > 0 && showChart && (
@@ -193,16 +208,20 @@ function Currency({ data, showJson }: any) {
 }
 
 function Debt({ data, showJson }: any) {
-    let message = "";
-    if (data.theyPayMe) {
-        message = `${data.withWho} owes you ${data.amount} ${data.currency}.`;
-    } else {
-        message = `You owe ${data.amount} ${data.currency} to ${data.withWho}.`;
-    }
     return (
         <div className="flex flex-col items-center">
             <div className="text-base mb-2 text-center">{data.description}</div>
-            <div className="text-lg font-semibold text-center">{message}</div>
+            <div className="text-lg font-semibold text-center">
+                {data.theyPayMe ? (
+                    <>
+                        {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
+                    </>
+                ) : (
+                    <>
+                        You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
+                    </>
+                )}
+            </div>
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
@@ -213,7 +232,7 @@ function Service({ data, showJson }: any) {
         <div className="flex flex-col items-center">
             <h2 className="text-lg font-semibold mb-1 text-center">{data.name}</h2>
             <div className="text-base font-medium mb-2 text-center">
-                {Number(data.cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {data.currency}
+                {formatMoney(data.cost)} {data.currency}
             </div>
             <div className="text-sm text-gray-600 mb-2 text-center">
                 {data.isManual ? 'Manual payment' : 'Payment is automatic'}
