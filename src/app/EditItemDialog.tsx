@@ -1,5 +1,5 @@
 "use client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { useState } from "react";
 import { addItemToDb, updateItemToDb, deleteItemFromDb } from "./actions";
@@ -53,6 +53,9 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Edit Item</DialogTitle>
+                    <DialogDescription>
+                        Edit the details of your item and save changes, or delete the item.
+                    </DialogDescription>
                 </DialogHeader>
                 {form}
             </DialogContent>

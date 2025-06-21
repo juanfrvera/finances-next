@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
 import { addItemToDb } from "./actions";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
@@ -73,6 +73,9 @@ export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item:
                             </svg>
                         </button>
                     </div>
+                    <DialogDescription>
+                        Select the type of item to add, then fill out the form to create it.
+                    </DialogDescription>
                 </DialogHeader>
                 {!selectedType ? (
                     <div className="grid grid-cols-2 gap-4">
