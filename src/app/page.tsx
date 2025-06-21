@@ -1,17 +1,51 @@
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/lib/db";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import AddItemDialog from "./AddItemDialog";
+
+// Types for items
+interface AccountItem {
+  type: 'account';
+  _id?: any;
+  name: string;
+  balance: number;
+  currency: string;
+}
+interface CurrencyItem {
+  type: 'currency';
+  _id?: any;
+  currency: string;
+  value?: number;
+}
+interface DebtItem {
+  type: 'debt';
+  _id?: any;
+  description: string;
+  withWho: string;
+  amount: number;
+  currency: string;
+  theyPayMe: boolean;
+}
+interface ServiceItem {
+  type: 'service';
+  _id?: any;
+  name: string;
+  cost: number;
+  currency: string;
+  isManual: boolean;
+}
+type Item = AccountItem | CurrencyItem | DebtItem | ServiceItem;
+
+type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 
 export default async function Dashboard() {
   const db = await getDb();
   const items = await db.collection("items").find().toArray();
 
   // Calculate currency values
-  const accounts = items.filter((item) => item.type === "account");
+  const accountItems = items.filter((item) => item.type === "account");
   const mappedItems = items.map((item) => {
     if (item.type === "currency") {
-      const sum = accounts
+      const sum = accountItems
         .filter((acc) => acc.currency === item.currency)
         .reduce((acc, curr) => acc + Number(curr.balance), 0);
       return { ...item, value: sum };
@@ -23,32 +57,36 @@ export default async function Dashboard() {
     <div className="px-4 md:px-12 lg:px-32">
       Welcome to the Dashboard
       <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-start">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-4 h-full min-h-[120px]">
-              <span className="text-lg font-semibold mb-2">Add new</span>
-              <Plus size={40} className="text-primary" />
-            </Card>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Item</DialogTitle>
-            </DialogHeader>
-            {/* Replace below with your form */}
-            <div className="py-4">Form goes here</div>
-          </DialogContent>
-        </Dialog>
-        {mappedItems.map((item) => (
-          <div key={item._id.toString()}>
-            <Item {...item} />
-          </div>
-        ))}
+        <AddItemDialog />
+        {mappedItems.map((item) => {
+          // Type guard to ensure item matches Item type
+          if (
+            item.type === "account" ||
+            item.type === "currency" ||
+            item.type === "debt" ||
+            item.type === "service"
+          ) {
+            return (
+              <div key={item._id?.toString() ?? Math.random()}>
+                <ItemCard {...(item as Item)} />
+              </div>
+            );
+          }
+          // Render JSON for unknown types
+          return (
+            <div key={item._id?.toString() ?? Math.random()}>
+              <Card>
+                <pre>{JSON.stringify(item, null, 2)}</pre>
+              </Card>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function Item(data) {
+function ItemCard(data: Item) {
   if (data.type === 'account') {
     return <Account {...data} />;
   }
@@ -68,7 +106,7 @@ function Item(data) {
   );
 }
 
-function Account(data) {
+function Account(data: AccountItem) {
   return (
     <Card>
       <div className="flex flex-col items-center">
@@ -84,7 +122,7 @@ function Account(data) {
   );
 }
 
-function Currency(data) {
+function Currency(data: CurrencyItem) {
   return (
     <Card>
       <div className="flex flex-col items-center">
@@ -99,7 +137,7 @@ function Currency(data) {
   );
 }
 
-function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }) {
+function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }: DebtItem) {
   let message = "";
   if (theyPayMe) {
     message = `${withWho} owes you ${amount} ${currency}.`;
@@ -117,7 +155,7 @@ function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }) {
   );
 }
 
-function Service({ name, cost, currency, isManual, ...rest }) {
+function Service({ name, cost, currency, isManual, ...rest }: ServiceItem) {
   return (
     <Card>
       <div className="flex flex-col items-center">
