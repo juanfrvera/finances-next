@@ -34,51 +34,51 @@ interface ServiceItem {
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 
 export default function AddItemDialog() {
-  const [open, setOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<ItemType>(null);
+    const [open, setOpen] = useState(false);
+    const [selectedType, setSelectedType] = useState<ItemType>(null);
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Card className="flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-4 h-full min-h-[120px]">
-          <span className="text-lg font-semibold mb-2">Add new</span>
-          <Plus size={40} className="text-primary" />
-        </Card>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            {selectedType && (
-              <button
-                className="cursor-pointer p-1 rounded hover:bg-gray-100"
-                onClick={() => setSelectedType(null)}
-                aria-label="Back"
-                type="button"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            )}
-            <DialogTitle>Add New Item</DialogTitle>
-          </div>
-        </DialogHeader>
-        {!selectedType ? (
-          <div className="grid grid-cols-2 gap-4">
-            <TypeBox label="Service" description="Create a service that is payed every month." onClick={() => setSelectedType('service')} />
-            <TypeBox label="Account" description="Track the balance of your accounts." onClick={() => setSelectedType('account')} />
-            <TypeBox label="Debt" description="Track what you owe or who owes you." onClick={() => setSelectedType('debt')} />
-            <TypeBox label="Currency" description="Keep track of all the account balances in certain currency." onClick={() => setSelectedType('currency')} />
-          </div>
-        ) : (
-          <div>
-            {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} />}
-            {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} />}
-            {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} />}
-            {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} />}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Card className="flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-4 h-full min-h-[120px]">
+                    <span className="text-lg font-semibold mb-2">Add new</span>
+                    <Plus size={40} className="text-primary" />
+                </Card>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <div className="flex items-center gap-2">
+                        {selectedType && (
+                            <button
+                                className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                                onClick={() => setSelectedType(null)}
+                                aria-label="Back"
+                                type="button"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                        )}
+                        <DialogTitle>Add New Item</DialogTitle>
+                    </div>
+                </DialogHeader>
+                {!selectedType ? (
+                    <div className="grid grid-cols-2 gap-4">
+                        <TypeBox label="Service" description="Create a service that is payed every month." onClick={() => setSelectedType('service')} />
+                        <TypeBox label="Account" description="Track the balance of your accounts." onClick={() => setSelectedType('account')} />
+                        <TypeBox label="Debt" description="Track what you owe or who owes you." onClick={() => setSelectedType('debt')} />
+                        <TypeBox label="Currency" description="Keep track of all the account balances in certain currency." onClick={() => setSelectedType('currency')} />
+                    </div>
+                ) : (
+                    <div>
+                        {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} />}
+                        {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} />}
+                        {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} />}
+                        {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} />}
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function TypeBox({ label, description, onClick }: { label: string; description: string; onClick: () => void }) {
@@ -100,7 +100,7 @@ function CreateServiceForm({ onClose }: { onClose: () => void }) {
             <label className="flex items-center gap-2">
                 <input type="checkbox" name="isManual" /> Manual payment
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2">Create Service</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Service</button>
         </form>
     );
 }
@@ -112,7 +112,7 @@ function CreateAccountForm({ onClose }: { onClose: () => void }) {
             <input className="border p-2 rounded" name="name" placeholder="Account Name" required />
             <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required />
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2">Create Account</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Account</button>
         </form>
     );
 }
@@ -128,7 +128,7 @@ function CreateDebtForm({ onClose }: { onClose: () => void }) {
             <label className="flex items-center gap-2">
                 <input type="checkbox" name="theyPayMe" /> They pay me
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2">Create Debt</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Debt</button>
         </form>
     );
 }
@@ -138,7 +138,7 @@ function CreateCurrencyForm({ onClose }: { onClose: () => void }) {
     return (
         <form className="flex flex-col gap-2">
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2">Create Currency</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Currency</button>
         </form>
     );
 }
