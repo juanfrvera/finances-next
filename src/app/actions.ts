@@ -25,9 +25,11 @@ export async function addItemToDb(item: any) {
 export async function updateItemToDb(item: any) {
     if (!item._id) throw new Error("Missing _id for update");
     const db = await getDb();
-    const _id = typeof item._id === "string" ? new ObjectId(item._id) : item._id;
+    const _id = typeof item._id === "string" ? ObjectId.createFromHexString(item._id) : item._id;
     const editDate = new Date().toISOString();
-    await db.collection("items").updateOne({ _id }, { $set: { ...item, editDate } });
+    // Exclude _id from the update payload to avoid attempting to overwrite it
+    const { _id: _omit, ...updateFields } = item;
+    await db.collection("items").updateOne({ _id }, { $set: { ...updateFields, editDate } });
     const updated = await db.collection("items").findOne({ _id });
     if (!updated) return null;
     return {
@@ -40,7 +42,7 @@ export async function updateItemToDb(item: any) {
 
 export async function deleteItemFromDb(id: string) {
     const db = await getDb();
-    const _id = typeof id === "string" ? new ObjectId(id) : id;
+    const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
     await db.collection("items").deleteOne({ _id });
     return true;
 }
