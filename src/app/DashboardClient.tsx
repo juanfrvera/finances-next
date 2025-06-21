@@ -143,12 +143,12 @@ function Currency(data: any) {
     const renderLabel = ({ name, percentage }: { name: string, percentage: number }) => {
         return `${shortenName(name)}: ${percentage.toFixed(1)}%`;
     };
-    // Dynamic sizing: use fixed width for card and chart
+    // Dynamic sizing: use fixed width for card and chart, but height is auto when chart is hidden
     const cardBase = 'flex flex-col items-center p-4 transition-all duration-300';
-    const cardChart = 'w-[600px] min-h-[555px]'; // 2x wider, 1.5x taller
-    const cardNoChart = 'w-[320px] min-h-[370px]'; // default size
+    const cardChart = 'w-[600px] h-[555px]'; // 2x wider, 1.5x taller
+    const cardNoChart = 'w-[320px] h-auto'; // default size, auto height
     return (
-        <div className={`${cardBase} ${showChart ? cardChart : cardNoChart}`}> 
+        <div className={`${cardBase} ${showChart ? cardChart : cardNoChart}`}>
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
