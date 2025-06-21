@@ -12,14 +12,19 @@ export default async function Dashboard() {
     editDate: item.editDate ? new Date(item.editDate).toISOString() : undefined,
   }));
 
-  // Calculate currency values
+  // Calculate currency values and account breakdowns
   const accountItems = plainItems.filter((item) => item.type === "account");
   const mappedItems = plainItems.map((item) => {
     if (item.type === "currency") {
-      const sum = accountItems
-        .filter((acc) => acc.currency === item.currency)
-        .reduce((acc, curr) => acc + Number(curr.balance), 0);
-      return { ...item, value: sum };
+      const accounts = accountItems.filter((acc) => acc.currency === item.currency);
+      const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+      const accountBreakdown = accounts.map(acc => ({
+        id: acc._id,
+        name: acc.name,
+        balance: Number(acc.balance),
+        percentage: sum > 0 ? (Number(acc.balance) / sum) * 100 : 0,
+      }));
+      return { ...item, value: sum, accountBreakdown };
     }
     return item;
   });
