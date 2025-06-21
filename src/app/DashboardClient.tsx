@@ -11,17 +11,14 @@ interface DashboardClientProps {
 
 // Helper function to format money with smaller decimals
 function formatMoney(amount: number) {
-    const parts = Number(amount).toLocaleString(undefined, {
+    const formatted = Number(amount).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-    }).split('.');
+    });
 
-    return (
-        <>
-            {parts[0]}
-            {parts[1] && <span className="text-sm">.{parts[1]}</span>}
-        </>
-    );
+    const parts = formatted.split('.');
+
+    return (<span>{parts[0]}<span className="text-sm">.{parts[1]}</span></span>);
 }
 
 export default function DashboardClient({ items }: DashboardClientProps) {
