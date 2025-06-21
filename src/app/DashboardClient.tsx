@@ -83,7 +83,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             {/* Change grid to flex-wrap so cards can have different widths */}
             <div className="mt-4 flex flex-wrap gap-4 items-start">
                 <div
-                    className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg"
+                    className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg"
                     style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
                 >
                     <AddItemDialog onItemCreated={handleItemCreated} />
@@ -107,7 +107,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                     }
                     return (
                         <div key={item._id?.toString() ?? Math.random() + idx}>
-                            <Card className="p-4" style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
+                            <Card style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
                                 {showJson && <pre>{JSON.stringify(item, null, 2)}</pre>}
                             </Card>
                         </div>
@@ -139,7 +139,7 @@ function ItemCard(props: any) {
             {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
             {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
-                <div style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT, padding: '1rem' }}>
+                <div style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
                     {showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>}
                 </div>
             )}
@@ -150,7 +150,7 @@ function ItemCard(props: any) {
 function Account({ data, showJson }: any) {
     return (
         <div
-            className="flex flex-col items-center justify-center text-center p-4"
+            className="flex flex-col items-center justify-center text-center"
             style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
         >
             <h2 className="text-lg font-semibold mb-2">{data.name}</h2>
@@ -185,13 +185,13 @@ function Currency({ data, showJson }: any) {
 
     return (
         <div
-            className="flex flex-col items-center p-4 transition-all duration-300"
+            className="flex flex-col items-center transition-all duration-300"
             style={{
                 width: CARD_SIZE_UNIT * widthMultiplier,
                 height: CARD_SIZE_UNIT * heightMultiplier,
             }}
         >
-            <div className="flex items-center w-full justify-between mb-2">
+            <div className="flex items-center w-full justify-between mb-2 p-4">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
                     className="ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none"
@@ -225,7 +225,7 @@ function Currency({ data, showJson }: any) {
 function Debt({ data, showJson }: any) {
     return (
         <div
-            className="flex flex-col items-center justify-center text-center p-4"
+            className="flex flex-col items-center justify-center text-center"
             style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
         >
             <div className="text-base mb-2">{data.description}</div>
@@ -248,7 +248,7 @@ function Debt({ data, showJson }: any) {
 function Service({ data, showJson }: any) {
     return (
         <div
-            className="flex flex-col items-center justify-center text-center p-4"
+            className="flex flex-col items-center justify-center text-center"
             style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
         >
             <h2 className="text-lg font-semibold mb-1">{data.name}</h2>
