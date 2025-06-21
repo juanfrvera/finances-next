@@ -3,7 +3,7 @@ import { useState } from "react";
 import AddItemDialog from "./AddItemDialog";
 import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import PieChartDisplay from "./PieChartDisplay";
 
 interface DashboardClientProps {
     items: any[];
@@ -152,7 +152,7 @@ function Currency({ data, showJson }: any) {
         return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
     }
     // Custom label renderer for Pie slices
-    const renderLabel = ({ name, percentage }: { name: string, percentage: number }) => {
+    const renderLabel = (name: string, percentage: number) => {
         return `${shortenName(name)}: ${percentage.toFixed(1)}%`;
     };
     // Dynamic sizing: use fixed width for card and chart, but height is auto when chart is hidden
@@ -184,25 +184,7 @@ function Currency({ data, showJson }: any) {
             </div>
             {breakdown.length > 0 && showChart && (
                 <div className="w-full flex flex-col items-center mt-2">
-                    <ResponsiveContainer width={520} height={330}>
-                        <PieChart>
-                            <Pie
-                                data={breakdown}
-                                dataKey="percentage"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={130}
-                                label={renderLabel}
-                            >
-                                {breakdown.map((entry: any, idx: number) => (
-                                    <Cell key={`cell-${entry.id}`} fill={COLORS[idx % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip formatter={(value: any) => `${value.toFixed(2)}%`} />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    <PieChartDisplay breakdown={breakdown} colors={COLORS} labelFormatter={renderLabel} />
                 </div>
             )}
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
