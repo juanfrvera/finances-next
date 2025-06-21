@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
+import { addItemToDb } from "./actions";
 
 // Types for items
 interface AccountItem {
@@ -33,7 +34,7 @@ interface ServiceItem {
 }
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 
-export default function AddItemDialog() {
+export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item: any) => void }) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<ItemType>(null);
 
@@ -81,10 +82,10 @@ export default function AddItemDialog() {
                     </div>
                 ) : (
                     <div>
-                        {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} />}
-                        {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} />}
-                        {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} />}
-                        {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} />}
+                        {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
+                        {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
+                        {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
+                        {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
                     </div>
                 )}
             </DialogContent>
@@ -101,11 +102,23 @@ function TypeBox({ label, description, onClick }: { label: string; description: 
     );
 }
 
-function CreateServiceForm({ onClose }: { onClose: () => void }) {
+function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ name: '', cost: '', currency: '', isManual: false });
     const isValid = form.name && form.cost && form.currency;
+    async function handleSubmit(formData: FormData) {
+        const item = {
+            type: 'service',
+            name: form.name,
+            cost: Number(form.cost),
+            currency: form.currency,
+            isManual: form.isManual,
+        };
+        await addItemToDb(item);
+        onItemCreated(item);
+        onClose();
+    }
     return (
-        <form className="flex flex-col gap-2">
+        <form className="flex flex-col gap-2" action={handleSubmit}>
             <input className="border p-2 rounded" name="name" placeholder="Service Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <input className="border p-2 rounded" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
@@ -117,11 +130,22 @@ function CreateServiceForm({ onClose }: { onClose: () => void }) {
     );
 }
 
-function CreateAccountForm({ onClose }: { onClose: () => void }) {
+function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ name: '', balance: '', currency: '' });
     const isValid = form.name && form.balance && form.currency;
+    async function handleSubmit(formData: FormData) {
+        const item = {
+            type: 'account',
+            name: form.name,
+            balance: Number(form.balance),
+            currency: form.currency,
+        };
+        await addItemToDb(item);
+        onItemCreated(item);
+        onClose();
+    }
     return (
-        <form className="flex flex-col gap-2">
+        <form className="flex flex-col gap-2" action={handleSubmit}>
             <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} />
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
@@ -130,11 +154,24 @@ function CreateAccountForm({ onClose }: { onClose: () => void }) {
     );
 }
 
-function CreateDebtForm({ onClose }: { onClose: () => void }) {
+function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ description: '', withWho: '', amount: '', currency: '', theyPayMe: false });
     const isValid = form.description && form.withWho && form.amount && form.currency;
+    async function handleSubmit(formData: FormData) {
+        const item = {
+            type: 'debt',
+            description: form.description,
+            withWho: form.withWho,
+            amount: Number(form.amount),
+            currency: form.currency,
+            theyPayMe: form.theyPayMe,
+        };
+        await addItemToDb(item);
+        onItemCreated(item);
+        onClose();
+    }
     return (
-        <form className="flex flex-col gap-2">
+        <form className="flex flex-col gap-2" action={handleSubmit}>
             <input className="border p-2 rounded" name="description" placeholder="Description" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={form.withWho} onChange={e => setForm(f => ({ ...f, withWho: e.target.value }))} />
             <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
@@ -147,11 +184,20 @@ function CreateDebtForm({ onClose }: { onClose: () => void }) {
     );
 }
 
-function CreateCurrencyForm({ onClose }: { onClose: () => void }) {
+function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [currency, setCurrency] = useState('');
     const isValid = !!currency;
+    async function handleSubmit(formData: FormData) {
+        const item = {
+            type: 'currency',
+            currency,
+        };
+        await addItemToDb(item);
+        onItemCreated(item);
+        onClose();
+    }
     return (
-        <form className="flex flex-col gap-2">
+        <form className="flex flex-col gap-2" action={handleSubmit}>
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currency} onChange={e => setCurrency(e.target.value)} />
             <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Currency</button>
         </form>
