@@ -120,7 +120,7 @@ function Account(data: any) {
                 {Number(data.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
-            <pre>{JSON.stringify(data, null, 2)}</pre>
+            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>
         </div>
     );
 }
@@ -133,7 +133,7 @@ function Currency(data: any) {
                 {Number(data.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
-            <pre>{JSON.stringify(data, null, 2)}</pre>
+            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>
         </div>
     );
 }
@@ -149,7 +149,7 @@ function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }: an
         <div className="flex flex-col items-center">
             <div className="text-base mb-2 text-center">{description}</div>
             <div className="text-lg font-semibold text-center">{message}</div>
-            <pre>{JSON.stringify({ description, withWho, amount, currency, theyPayMe, ...rest }, null, 2)}</pre>
+            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify({ description, withWho, amount, currency, theyPayMe, ...rest }, null, 2)}</pre>
         </div>
     );
 }
@@ -164,7 +164,7 @@ function Service({ name, cost, currency, isManual, ...rest }: any) {
             <div className="text-sm text-gray-600 mb-2 text-center">
                 {isManual ? 'Manual payment' : 'Payment is automatic'}
             </div>
-            <pre>{JSON.stringify({ name, cost, currency, isManual, ...rest }, null, 2)}</pre>
+            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify({ name, cost, currency, isManual, ...rest }, null, 2)}</pre>
         </div>
     );
 }
