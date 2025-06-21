@@ -15,13 +15,13 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     }
     const allItems = [...clientItems, ...items];
 
-    // Sort by editDate, items with editDate first, then those without
+    // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
     const sortedItems = allItems.slice().sort((a, b) => {
         const aHasDate = !!a.editDate;
         const bHasDate = !!b.editDate;
-        if (aHasDate && !bHasDate) return -1;
-        if (!aHasDate && bHasDate) return 1;
         if (!aHasDate && !bHasDate) return 0;
+        if (!aHasDate) return sortDesc ? 1 : -1;
+        if (!bHasDate) return sortDesc ? -1 : 1;
         const aDate = new Date(a.editDate).getTime();
         const bDate = new Date(b.editDate).getTime();
         return sortDesc ? bDate - aDate : aDate - bDate;
