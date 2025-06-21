@@ -26,6 +26,11 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
         isManual: initial?.isManual || false,
     });
     const isValid = form.name && form.cost && form.currency;
+    const isChanged =
+        form.name !== (initial?.name || '') ||
+        form.cost !== (initial?.cost?.toString() || '') ||
+        form.currency !== (initial?.currency || '') ||
+        form.isManual !== (initial?.isManual || false);
     useEffect(() => {
         if (initial) {
             setForm({
@@ -54,10 +59,14 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
                 <input type="checkbox" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} /> Manual payment
             </label>
             <div className="flex gap-2 mt-2">
-                <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
-                    {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                </button>
-                {onCancel && <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>}
+                {(isChanged || !initial) && (
+                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                        {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
+                    </button>
+                )}
+                {(isChanged || !initial) && onCancel && (
+                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                )}
                 {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
@@ -76,15 +85,19 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     showDelete?: boolean;
     onDelete?: () => void;
 }) {
-    const [form, setForm] = useState({
+    const [accountForm, setAccountForm] = useState({
         name: initial?.name || '',
         balance: initial?.balance?.toString() || '',
         currency: initial?.currency || '',
     });
-    const isValid = form.name && form.balance && form.currency;
+    const isValid = accountForm.name && accountForm.balance && accountForm.currency;
+    const isChanged =
+        accountForm.name !== (initial?.name || '') ||
+        accountForm.balance !== (initial?.balance?.toString() || '') ||
+        accountForm.currency !== (initial?.currency || '');
     useEffect(() => {
         if (initial) {
-            setForm({
+            setAccountForm({
                 name: initial.name || '',
                 balance: initial.balance?.toString() || '',
                 currency: initial.currency || '',
@@ -94,21 +107,25 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         onSubmit({
-            name: form.name,
-            balance: Number(form.balance),
-            currency: form.currency,
+            name: accountForm.name,
+            balance: Number(accountForm.balance),
+            currency: accountForm.currency,
         });
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+            <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={accountForm.name} onChange={e => setAccountForm(f => ({ ...f, name: e.target.value }))} />
+            <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={accountForm.balance} onChange={e => setAccountForm(f => ({ ...f, balance: e.target.value }))} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={accountForm.currency} onChange={e => setAccountForm(f => ({ ...f, currency: e.target.value }))} />
             <div className="flex gap-2 mt-2">
-                <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
-                    {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                </button>
-                {onCancel && <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>}
+                {(isChanged || !initial) && (
+                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                        {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
+                    </button>
+                )}
+                {(isChanged || !initial) && onCancel && (
+                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                )}
                 {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
@@ -117,6 +134,7 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     );
 }
 
+// DebtForm
 export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Debt", showDelete, onDelete }: {
     initial?: { description: string; withWho: string; amount: string | number; currency: string; theyPayMe: boolean };
     loading: boolean;
@@ -127,17 +145,23 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
     showDelete?: boolean;
     onDelete?: () => void;
 }) {
-    const [form, setForm] = useState({
+    const [debtFormState, setDebtFormState] = useState({
         description: initial?.description || '',
         withWho: initial?.withWho || '',
         amount: initial?.amount?.toString() || '',
         currency: initial?.currency || '',
         theyPayMe: initial?.theyPayMe || false,
     });
-    const isValid = form.description && form.withWho && form.amount && form.currency;
+    const isValid = debtFormState.description && debtFormState.withWho && debtFormState.amount && debtFormState.currency;
+    const isChanged =
+        debtFormState.description !== (initial?.description || '') ||
+        debtFormState.withWho !== (initial?.withWho || '') ||
+        debtFormState.amount !== (initial?.amount?.toString() || '') ||
+        debtFormState.currency !== (initial?.currency || '') ||
+        debtFormState.theyPayMe !== (initial?.theyPayMe || false);
     useEffect(() => {
         if (initial) {
-            setForm({
+            setDebtFormState({
                 description: initial.description || '',
                 withWho: initial.withWho || '',
                 amount: initial.amount?.toString() || '',
@@ -149,27 +173,31 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         onSubmit({
-            description: form.description,
-            withWho: form.withWho,
-            amount: Number(form.amount),
-            currency: form.currency,
-            theyPayMe: form.theyPayMe,
+            description: debtFormState.description,
+            withWho: debtFormState.withWho,
+            amount: Number(debtFormState.amount),
+            currency: debtFormState.currency,
+            theyPayMe: debtFormState.theyPayMe,
         });
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="description" placeholder="Description" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-            <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={form.withWho} onChange={e => setForm(f => ({ ...f, withWho: e.target.value }))} />
-            <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+            <input className="border p-2 rounded" name="description" placeholder="Description" required value={debtFormState.description} onChange={e => setDebtFormState(f => ({ ...f, description: e.target.value }))} />
+            <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={debtFormState.withWho} onChange={e => setDebtFormState(f => ({ ...f, withWho: e.target.value }))} />
+            <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={debtFormState.amount} onChange={e => setDebtFormState(f => ({ ...f, amount: e.target.value }))} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={debtFormState.currency} onChange={e => setDebtFormState(f => ({ ...f, currency: e.target.value }))} />
             <label className="flex items-center gap-2">
-                <input type="checkbox" name="theyPayMe" checked={form.theyPayMe} onChange={e => setForm(f => ({ ...f, theyPayMe: e.target.checked }))} /> They pay me
+                <input type="checkbox" name="theyPayMe" checked={debtFormState.theyPayMe} onChange={e => setDebtFormState(f => ({ ...f, theyPayMe: e.target.checked }))} /> They pay me
             </label>
             <div className="flex gap-2 mt-2">
-                <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
-                    {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                </button>
-                {onCancel && <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>}
+                {(isChanged || !initial) && (
+                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                        {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
+                    </button>
+                )}
+                {(isChanged || !initial) && onCancel && (
+                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                )}
                 {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
@@ -188,23 +216,28 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
     showDelete?: boolean;
     onDelete?: () => void;
 }) {
-    const [currency, setCurrency] = useState(initial?.currency || '');
-    const isValid = !!currency;
+    const [currencyValue, setCurrencyValue] = useState(initial?.currency || '');
+    const isValid = !!currencyValue;
+    const isChanged = currencyValue !== (initial?.currency || '');
     useEffect(() => {
-        if (initial) setCurrency(initial.currency || '');
+        if (initial) setCurrencyValue(initial.currency || '');
     }, [initial]);
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        onSubmit({ currency });
+        onSubmit({ currency: currencyValue });
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currency} onChange={e => setCurrency(e.target.value)} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
             <div className="flex gap-2 mt-2">
-                <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
-                    {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                </button>
-                {onCancel && <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>}
+                {(isChanged || !initial) && (
+                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                        {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
+                    </button>
+                )}
+                {(isChanged || !initial) && onCancel && (
+                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                )}
                 {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
