@@ -14,6 +14,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [showJson, setShowJson] = useState(true); // NEW: toggle for JSON.stringify
     function handleItemCreated(newItem: any) {
         setClientItems((prev) => [newItem, ...prev]);
     }
@@ -47,12 +48,22 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                 onItemUpdated={handleItemUpdated}
                 onItemDeleted={handleItemDeleted}
             />
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end mb-2 gap-2 items-center">
                 <button
                     className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
                     onClick={() => setSortDesc((v) => !v)}
                 >
                     Sort by edit date: {sortDesc ? "Newest first" : "Oldest first"}
+                </button>
+                <button
+                    className="p-1 rounded hover:bg-gray-200 focus:outline-none"
+                    aria-label={showJson ? 'Hide all JSON' : 'Show all JSON'}
+                    onClick={() => setShowJson(v => !v)}
+                >
+                    {/* Dev mode icon: code brackets */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${showJson ? 'text-blue-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
+                    </svg>
                 </button>
             </div>
             {/* Change grid to flex-wrap so cards can have different widths */}
@@ -72,14 +83,14 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                                 className="cursor-pointer"
                                 style={{ display: 'flex', flexDirection: 'column' }}
                             >
-                                <ItemCard {...item} />
+                                <ItemCard {...item} showJson={showJson} />
                             </div>
                         );
                     }
                     return (
                         <div key={item._id?.toString() ?? Math.random() + idx} className="min-w-[250px]">
-                            <Card>
-                                <pre>{JSON.stringify(item, null, 2)}</pre>
+                            <Card className="p-4">
+                                {showJson && <pre>{JSON.stringify(item, null, 2)}</pre>}
                             </Card>
                         </div>
                     );
@@ -89,11 +100,12 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     );
 }
 
-function ItemCard(data: any) {
+function ItemCard(props: any) {
     // Remove overflow-hidden so child content can overflow if needed
+    const { showJson, ...rest } = props;
     return (
         <Card
-            className="relative group"
+            className="relative group p-4"
             style={{
                 transition: 'background 0.2s',
             }}
@@ -104,18 +116,18 @@ function ItemCard(data: any) {
                 (e.currentTarget as HTMLElement).style.background = '';
             }}
         >
-            {data.type === 'account' && <Account {...data} />}
-            {data.type === 'currency' && <Currency {...data} />}
-            {data.type === 'debt' && <Debt {...data} />}
-            {data.type === 'service' && <Service {...data} />}
-            {!['account', 'currency', 'debt', 'service'].includes(data.type) && (
-                <pre>{JSON.stringify(data, null, 2)}</pre>
+            {rest.type === 'account' && <Account data={rest} showJson={showJson} />}
+            {rest.type === 'currency' && <Currency data={rest} showJson={showJson} />}
+            {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
+            {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
+            {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
+                showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>
             )}
         </Card>
     );
 }
 
-function Account(data: any) {
+function Account({ data, showJson }: any) {
     return (
         <div className="flex flex-col items-center">
             <h2 className="text-lg font-semibold mb-2 text-center">{data.name}</h2>
@@ -123,12 +135,12 @@ function Account(data: any) {
                 {Number(data.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
-            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
 
-function Currency(data: any) {
+function Currency({ data, showJson }: any) {
     const COLORS = [
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
@@ -193,38 +205,38 @@ function Currency(data: any) {
                     </ResponsiveContainer>
                 </div>
             )}
-            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
 
-function Debt({ description, withWho, amount, currency, theyPayMe, ...rest }: any) {
+function Debt({ data, showJson }: any) {
     let message = "";
-    if (theyPayMe) {
-        message = `${withWho} owes you ${amount} ${currency}.`;
+    if (data.theyPayMe) {
+        message = `${data.withWho} owes you ${data.amount} ${data.currency}.`;
     } else {
-        message = `You owe ${amount} ${currency} to ${withWho}.`;
+        message = `You owe ${data.amount} ${data.currency} to ${data.withWho}.`;
     }
     return (
         <div className="flex flex-col items-center">
-            <div className="text-base mb-2 text-center">{description}</div>
+            <div className="text-base mb-2 text-center">{data.description}</div>
             <div className="text-lg font-semibold text-center">{message}</div>
-            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify({ description, withWho, amount, currency, theyPayMe, ...rest }, null, 2)}</pre>
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
 
-function Service({ name, cost, currency, isManual, ...rest }: any) {
+function Service({ data, showJson }: any) {
     return (
         <div className="flex flex-col items-center">
-            <h2 className="text-lg font-semibold mb-1 text-center">{name}</h2>
+            <h2 className="text-lg font-semibold mb-1 text-center">{data.name}</h2>
             <div className="text-base font-medium mb-2 text-center">
-                {Number(cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                {Number(data.cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {data.currency}
             </div>
             <div className="text-sm text-gray-600 mb-2 text-center">
-                {isManual ? 'Manual payment' : 'Payment is automatic'}
+                {data.isManual ? 'Manual payment' : 'Payment is automatic'}
             </div>
-            <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify({ name, cost, currency, isManual, ...rest }, null, 2)}</pre>
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
