@@ -102,54 +102,58 @@ function TypeBox({ label, description, onClick }: { label: string; description: 
 }
 
 function CreateServiceForm({ onClose }: { onClose: () => void }) {
-    // Fields: name, cost, currency, isManual
+    const [form, setForm] = useState({ name: '', cost: '', currency: '', isManual: false });
+    const isValid = form.name && form.cost && form.currency;
     return (
         <form className="flex flex-col gap-2">
-            <input className="border p-2 rounded" name="name" placeholder="Service Name" required />
-            <input className="border p-2 rounded" name="cost" placeholder="Cost" type="number" required />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
+            <input className="border p-2 rounded" name="name" placeholder="Service Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <input className="border p-2 rounded" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
             <label className="flex items-center gap-2">
-                <input type="checkbox" name="isManual" /> Manual payment
+                <input type="checkbox" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} /> Manual payment
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Service</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Service</button>
         </form>
     );
 }
 
 function CreateAccountForm({ onClose }: { onClose: () => void }) {
-    // Fields: name, balance, currency
+    const [form, setForm] = useState({ name: '', balance: '', currency: '' });
+    const isValid = form.name && form.balance && form.currency;
     return (
         <form className="flex flex-col gap-2">
-            <input className="border p-2 rounded" name="name" placeholder="Account Name" required />
-            <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Account</button>
+            <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Account</button>
         </form>
     );
 }
 
 function CreateDebtForm({ onClose }: { onClose: () => void }) {
-    // Fields: description, withWho, amount, currency, theyPayMe
+    const [form, setForm] = useState({ description: '', withWho: '', amount: '', currency: '', theyPayMe: false });
+    const isValid = form.description && form.withWho && form.amount && form.currency;
     return (
         <form className="flex flex-col gap-2">
-            <input className="border p-2 rounded" name="description" placeholder="Description" required />
-            <input className="border p-2 rounded" name="withWho" placeholder="With Who" required />
-            <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
+            <input className="border p-2 rounded" name="description" placeholder="Description" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={form.withWho} onChange={e => setForm(f => ({ ...f, withWho: e.target.value }))} />
+            <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
             <label className="flex items-center gap-2">
-                <input type="checkbox" name="theyPayMe" /> They pay me
+                <input type="checkbox" name="theyPayMe" checked={form.theyPayMe} onChange={e => setForm(f => ({ ...f, theyPayMe: e.target.checked }))} /> They pay me
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Debt</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Debt</button>
         </form>
     );
 }
 
 function CreateCurrencyForm({ onClose }: { onClose: () => void }) {
-    // Fields: currency
+    const [currency, setCurrency] = useState('');
+    const isValid = !!currency;
     return (
         <form className="flex flex-col gap-2">
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer">Create Currency</button>
+            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currency} onChange={e => setCurrency(e.target.value)} />
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Currency</button>
         </form>
     );
 }
