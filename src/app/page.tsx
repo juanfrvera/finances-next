@@ -24,9 +24,16 @@ export default async function Dashboard() {
     return item;
   });
 
+  const hasItems = mappedItems.length > 0;
+
   return (
     <div className="px-4 md:px-12 lg:px-32">
-      Welcome to the Dashboard
+      {!hasItems && (
+        <div className="text-center my-8">
+          <h1 className="text-2xl font-bold mb-2">Welcome to your Dashboard</h1>
+          <p className="text-gray-600 mb-4">Get started by creating your first item!</p>
+        </div>
+      )}
       <DashboardClient items={mappedItems} />
     </div>
   );
