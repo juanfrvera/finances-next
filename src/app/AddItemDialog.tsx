@@ -113,8 +113,8 @@ function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, on
             currency: form.currency,
             isManual: form.isManual,
         };
-        await addItemToDb(item);
-        onItemCreated(item);
+        const created = await addItemToDb(item);
+        onItemCreated(created);
         onClose();
     }
     return (
@@ -140,8 +140,8 @@ function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, on
             balance: Number(form.balance),
             currency: form.currency,
         };
-        await addItemToDb(item);
-        onItemCreated(item);
+        const created = await addItemToDb(item);
+        onItemCreated(created);
         onClose();
     }
     return (
@@ -166,8 +166,8 @@ function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onIte
             currency: form.currency,
             theyPayMe: form.theyPayMe,
         };
-        await addItemToDb(item);
-        onItemCreated(item);
+        const created = await addItemToDb(item);
+        onItemCreated(created);
         onClose();
     }
     return (
@@ -192,8 +192,8 @@ function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, o
             type: 'currency',
             currency,
         };
-        await addItemToDb(item);
-        onItemCreated(item);
+        const created = await addItemToDb(item);
+        onItemCreated(created);
         onClose();
     }
     return (
