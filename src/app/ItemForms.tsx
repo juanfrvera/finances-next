@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function Spinner() {
     return (
@@ -52,12 +54,22 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="name" placeholder="Service Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <input className="border p-2 rounded" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
-            <label className="flex items-center gap-2">
-                <input type="checkbox" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} /> Manual payment
-            </label>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="service-name">Service Name</Label>
+                <Input id="service-name" name="name" placeholder="Service Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="service-cost">Cost</Label>
+                <Input id="service-cost" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="service-currency">Currency</Label>
+                <Input id="service-currency" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+                <input type="checkbox" id="service-isManual" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} />
+                <Label htmlFor="service-isManual" className="mb-0">Manual payment</Label>
+            </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
@@ -114,9 +126,18 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={accountForm.name} onChange={e => setAccountForm(f => ({ ...f, name: e.target.value }))} />
-            <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={accountForm.balance} onChange={e => setAccountForm(f => ({ ...f, balance: e.target.value }))} />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={accountForm.currency} onChange={e => setAccountForm(f => ({ ...f, currency: e.target.value }))} />
+            <div className="grid w-full gap-3">
+                <Label htmlFor="account-name">Account Name</Label>
+                <Input id="account-name" name="name" placeholder="Account Name" required value={accountForm.name} onChange={e => setAccountForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="account-balance">Balance</Label>
+                <Input id="account-balance" name="balance" placeholder="Balance" type="number" required value={accountForm.balance} onChange={e => setAccountForm(f => ({ ...f, balance: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="account-currency">Currency</Label>
+                <Input id="account-currency" name="currency" placeholder="Currency" required value={accountForm.currency} onChange={e => setAccountForm(f => ({ ...f, currency: e.target.value }))} />
+            </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
@@ -134,7 +155,6 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     );
 }
 
-// DebtForm
 export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Debt", showDelete, onDelete }: {
     initial?: { description: string; withWho: string; amount: string | number; currency: string; theyPayMe: boolean };
     loading: boolean;
@@ -182,13 +202,26 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="description" placeholder="Description" required value={debtFormState.description} onChange={e => setDebtFormState(f => ({ ...f, description: e.target.value }))} />
-            <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={debtFormState.withWho} onChange={e => setDebtFormState(f => ({ ...f, withWho: e.target.value }))} />
-            <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={debtFormState.amount} onChange={e => setDebtFormState(f => ({ ...f, amount: e.target.value }))} />
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={debtFormState.currency} onChange={e => setDebtFormState(f => ({ ...f, currency: e.target.value }))} />
-            <label className="flex items-center gap-2">
-                <input type="checkbox" name="theyPayMe" checked={debtFormState.theyPayMe} onChange={e => setDebtFormState(f => ({ ...f, theyPayMe: e.target.checked }))} /> They pay me
-            </label>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="debt-description">Description</Label>
+                <Input id="debt-description" name="description" placeholder="Description" required value={debtFormState.description} onChange={e => setDebtFormState(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="debt-withWho">With Who</Label>
+                <Input id="debt-withWho" name="withWho" placeholder="With Who" required value={debtFormState.withWho} onChange={e => setDebtFormState(f => ({ ...f, withWho: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="debt-amount">Amount</Label>
+                <Input id="debt-amount" name="amount" placeholder="Amount" type="number" required value={debtFormState.amount} onChange={e => setDebtFormState(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="debt-currency">Currency</Label>
+                <Input id="debt-currency" name="currency" placeholder="Currency" required value={debtFormState.currency} onChange={e => setDebtFormState(f => ({ ...f, currency: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+                <input type="checkbox" id="debt-theyPayMe" name="theyPayMe" checked={debtFormState.theyPayMe} onChange={e => setDebtFormState(f => ({ ...f, theyPayMe: e.target.checked }))} />
+                <Label htmlFor="debt-theyPayMe" className="mb-0">They pay me</Label>
+            </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
@@ -228,7 +261,10 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
     }
     return (
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-            <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
+            <div className="grid w-full gap-3">
+                <Label htmlFor="currency-currency">Currency</Label>
+                <Input id="currency-currency" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
+            </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
