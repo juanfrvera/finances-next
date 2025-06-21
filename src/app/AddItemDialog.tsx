@@ -45,9 +45,9 @@ export default function AddItemDialog() {
                     <Plus size={40} className="text-primary" />
                 </Card>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent showCloseButton={false}>
                 <DialogHeader>
-                    <div className="flex items-center gap-2 min-h-[2.5rem]">
+                    <div className="flex items-center gap-2 min-h-[2.5rem] w-full">
                         {selectedType && (
                             <button
                                 className="cursor-pointer p-1 rounded hover:bg-gray-100 flex items-center justify-center"
@@ -58,7 +58,18 @@ export default function AddItemDialog() {
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
                         )}
-                        <DialogTitle className="flex-1 text-center flex items-center justify-center">Add New Item</DialogTitle>
+                        <DialogTitle className="flex-1 text-left flex items-center">Add New Item</DialogTitle>
+                        {/* Close button, always present and vertically centered */}
+                        <button
+                            type="button"
+                            aria-label="Close"
+                            onClick={() => setOpen(false)}
+                            className="ml-2 p-1 rounded hover:bg-gray-100 flex items-center justify-center cursor-pointer"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                <path fillRule="evenodd" d="M10 8.586l4.95-4.95a1 1 0 111.414 1.415L11.414 10l4.95 4.95a1 1 0 01-1.414 1.415L10 11.414l-4.95 4.95a1 1 0 01-1.415-1.415l4.95-4.95-4.95-4.95A1 1 0 015.05 3.636l4.95 4.95z" clipRule="evenodd" />
+                            </svg>
+                        </button>
                     </div>
                 </DialogHeader>
                 {!selectedType ? (
