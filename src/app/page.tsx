@@ -4,10 +4,12 @@ import DashboardClient from "./DashboardClient";
 export default async function Dashboard() {
   const db = await getDb();
   const items = await db.collection("items").find().toArray();
-  // Convert to plain objects and _id to string
+  // Convert to plain objects and _id to string, ensure createDate/editDate are strings
   const plainItems = items.map((item: any) => ({
     ...item,
     _id: item._id?.toString?.() ?? undefined,
+    createDate: item.createDate ? new Date(item.createDate).toISOString() : undefined,
+    editDate: item.editDate ? new Date(item.editDate).toISOString() : undefined,
   }));
 
   // Calculate currency values
