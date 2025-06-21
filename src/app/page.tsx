@@ -1,5 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/lib/db";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
 
 export default async function Dashboard() {
   const db = await getDb();
@@ -21,6 +23,21 @@ export default async function Dashboard() {
     <div className="px-4 md:px-12 lg:px-32">
       Welcome to the Dashboard
       <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-start">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-4 h-full min-h-[120px]">
+              <span className="text-lg font-semibold mb-2">Add new</span>
+              <Plus size={40} className="text-primary" />
+            </Card>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Item</DialogTitle>
+            </DialogHeader>
+            {/* Replace below with your form */}
+            <div className="py-4">Form goes here</div>
+          </DialogContent>
+        </Dialog>
         {mappedItems.map((item) => (
           <div key={item._id.toString()}>
             <Item {...item} />
