@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import AddItemDialog from "./AddItemDialog";
+import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
 
 interface DashboardClientProps {
@@ -8,15 +9,24 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ items }: DashboardClientProps) {
-    const [clientItems, setClientItems] = useState<any[]>([]);
+    const [clientItems, setClientItems] = useState<any[]>(items);
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
     function handleItemCreated(newItem: any) {
         setClientItems((prev) => [newItem, ...prev]);
     }
-    const allItems = [...clientItems, ...items];
+    function handleItemUpdated(updated: any) {
+        setClientItems((prev) => prev.map(i => i._id === updated._id ? updated : i));
+    }
+    function handleItemDeleted(id: string) {
+        setClientItems((prev) => prev.filter(i => i._id !== id));
+        // Also remove from initial items if present
+        // (If you want to support SSR fallback, you may want to filter from both)
+    }
 
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
-    const sortedItems = allItems.slice().sort((a, b) => {
+    const sortedItems = clientItems.slice().sort((a, b) => {
         const aHasDate = !!a.editDate;
         const bHasDate = !!b.editDate;
         if (!aHasDate && !bHasDate) return 0;
@@ -29,6 +39,13 @@ export default function DashboardClient({ items }: DashboardClientProps) {
 
     return (
         <div>
+            <EditItemDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                item={selectedItem}
+                onItemUpdated={handleItemUpdated}
+                onItemDeleted={handleItemDeleted}
+            />
             <div className="flex justify-end mb-2">
                 <button
                     className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
@@ -47,7 +64,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                         item.type === "service"
                     ) {
                         return (
-                            <div key={item._id?.toString() ?? Math.random() + idx}>
+                            <div key={item._id?.toString() ?? Math.random() + idx} onClick={() => { setSelectedItem(item); setEditDialogOpen(true); }} className="cursor-pointer">
                                 <ItemCard {...item} />
                             </div>
                         );
