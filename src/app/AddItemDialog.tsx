@@ -47,10 +47,10 @@ export default function AddItemDialog() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-h-[2.5rem]">
                         {selectedType && (
                             <button
-                                className="cursor-pointer p-1 rounded hover:bg-gray-100"
+                                className="cursor-pointer p-1 rounded hover:bg-gray-100 flex items-center justify-center"
                                 onClick={() => setSelectedType(null)}
                                 aria-label="Back"
                                 type="button"
@@ -58,7 +58,7 @@ export default function AddItemDialog() {
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
                         )}
-                        <DialogTitle>Add New Item</DialogTitle>
+                        <DialogTitle className="flex-1 text-center flex items-center justify-center">Add New Item</DialogTitle>
                     </div>
                 </DialogHeader>
                 {!selectedType ? (
