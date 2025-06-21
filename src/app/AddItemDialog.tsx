@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
@@ -102,10 +102,22 @@ function TypeBox({ label, description, onClick }: { label: string; description: 
     );
 }
 
+function Spinner() {
+    return (
+        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+    );
+}
+
 function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ name: '', cost: '', currency: '', isManual: false });
+    const [loading, setLoading] = useState(false);
     const isValid = form.name && form.cost && form.currency;
-    async function handleSubmit(formData: FormData) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setLoading(true);
         const item = {
             type: 'service',
             name: form.name,
@@ -115,25 +127,32 @@ function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, on
         };
         const created = await addItemToDb(item);
         onItemCreated(created);
+        setLoading(false);
         onClose();
     }
     return (
-        <form className="flex flex-col gap-2" action={handleSubmit}>
+        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
             <input className="border p-2 rounded" name="name" placeholder="Service Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <input className="border p-2 rounded" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
             <label className="flex items-center gap-2">
                 <input type="checkbox" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} /> Manual payment
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Service</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2" disabled={!isValid || loading}>
+                {loading && <Spinner />}
+                {loading ? "Creating..." : "Create Service"}
+            </button>
         </form>
     );
 }
 
 function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ name: '', balance: '', currency: '' });
+    const [loading, setLoading] = useState(false);
     const isValid = form.name && form.balance && form.currency;
-    async function handleSubmit(formData: FormData) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setLoading(true);
         const item = {
             type: 'account',
             name: form.name,
@@ -142,22 +161,29 @@ function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, on
         };
         const created = await addItemToDb(item);
         onItemCreated(created);
+        setLoading(false);
         onClose();
     }
     return (
-        <form className="flex flex-col gap-2" action={handleSubmit}>
+        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
             <input className="border p-2 rounded" name="name" placeholder="Account Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <input className="border p-2 rounded" name="balance" placeholder="Balance" type="number" required value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} />
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Account</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2" disabled={!isValid || loading}>
+                {loading && <Spinner />}
+                {loading ? "Creating..." : "Create Account"}
+            </button>
         </form>
     );
 }
 
 function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [form, setForm] = useState({ description: '', withWho: '', amount: '', currency: '', theyPayMe: false });
+    const [loading, setLoading] = useState(false);
     const isValid = form.description && form.withWho && form.amount && form.currency;
-    async function handleSubmit(formData: FormData) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setLoading(true);
         const item = {
             type: 'debt',
             description: form.description,
@@ -168,10 +194,11 @@ function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onIte
         };
         const created = await addItemToDb(item);
         onItemCreated(created);
+        setLoading(false);
         onClose();
     }
     return (
-        <form className="flex flex-col gap-2" action={handleSubmit}>
+        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
             <input className="border p-2 rounded" name="description" placeholder="Description" required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             <input className="border p-2 rounded" name="withWho" placeholder="With Who" required value={form.withWho} onChange={e => setForm(f => ({ ...f, withWho: e.target.value }))} />
             <input className="border p-2 rounded" name="amount" placeholder="Amount" type="number" required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
@@ -179,27 +206,37 @@ function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onIte
             <label className="flex items-center gap-2">
                 <input type="checkbox" name="theyPayMe" checked={form.theyPayMe} onChange={e => setForm(f => ({ ...f, theyPayMe: e.target.checked }))} /> They pay me
             </label>
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Debt</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2" disabled={!isValid || loading}>
+                {loading && <Spinner />}
+                {loading ? "Creating..." : "Create Debt"}
+            </button>
         </form>
     );
 }
 
 function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
     const [currency, setCurrency] = useState('');
+    const [loading, setLoading] = useState(false);
     const isValid = !!currency;
-    async function handleSubmit(formData: FormData) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setLoading(true);
         const item = {
             type: 'currency',
             currency,
         };
         const created = await addItemToDb(item);
         onItemCreated(created);
+        setLoading(false);
         onClose();
     }
     return (
-        <form className="flex flex-col gap-2" action={handleSubmit}>
+        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
             <input className="border p-2 rounded" name="currency" placeholder="Currency" required value={currency} onChange={e => setCurrency(e.target.value)} />
-            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50" disabled={!isValid}>Create Currency</button>
+            <button type="submit" className="mt-2 bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2" disabled={!isValid || loading}>
+                {loading && <Spinner />}
+                {loading ? "Creating..." : "Create Currency"}
+            </button>
         </form>
     );
 }
