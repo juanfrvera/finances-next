@@ -5,6 +5,8 @@ import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
 import PieChartDisplay from "./PieChartDisplay";
 
+const CARD_SIZE_UNIT = 220; // px
+
 interface DashboardClientProps {
     items: any[];
 }
@@ -80,7 +82,12 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             </div>
             {/* Change grid to flex-wrap so cards can have different widths */}
             <div className="mt-4 flex flex-wrap gap-4 items-start">
-                <div style={{ minWidth: 250 }}><AddItemDialog onItemCreated={handleItemCreated} /></div>
+                <div
+                    className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg"
+                    style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
+                >
+                    <AddItemDialog onItemCreated={handleItemCreated} />
+                </div>
                 {sortedItems.map((item, idx) => {
                     if (
                         item.type === "account" ||
@@ -93,15 +100,14 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                                 key={item._id?.toString() ?? Math.random() + idx}
                                 onClick={() => { setSelectedItem(item); setEditDialogOpen(true); }}
                                 className="cursor-pointer"
-                                style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <ItemCard {...item} showJson={showJson} />
                             </div>
                         );
                     }
                     return (
-                        <div key={item._id?.toString() ?? Math.random() + idx} className="min-w-[250px]">
-                            <Card className="p-4">
+                        <div key={item._id?.toString() ?? Math.random() + idx}>
+                            <Card className="p-4" style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
                                 {showJson && <pre>{JSON.stringify(item, null, 2)}</pre>}
                             </Card>
                         </div>
@@ -117,7 +123,7 @@ function ItemCard(props: any) {
     const { showJson, ...rest } = props;
     return (
         <Card
-            className="relative group p-4"
+            className="relative group" // p-0 because children will have padding
             style={{
                 transition: 'background 0.2s',
             }}
@@ -133,7 +139,9 @@ function ItemCard(props: any) {
             {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
             {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
-                showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>
+                <div style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT, padding: '1rem' }}>
+                    {showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>}
+                </div>
             )}
         </Card>
     );
@@ -141,8 +149,11 @@ function ItemCard(props: any) {
 
 function Account({ data, showJson }: any) {
     return (
-        <div className="flex flex-col items-center">
-            <h2 className="text-lg font-semibold mb-2 text-center">{data.name}</h2>
+        <div
+            className="flex flex-col items-center justify-center text-center p-4"
+            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
+        >
+            <h2 className="text-lg font-semibold mb-2">{data.name}</h2>
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center">
                 {formatMoney(data.balance)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
@@ -158,6 +169,10 @@ function Currency({ data, showJson }: any) {
     ];
     const breakdown = data.accountBreakdown || [];
     const [showChart, setShowChart] = useState(true);
+
+    const widthMultiplier = showChart ? 2 : 1;
+    const heightMultiplier = showChart ? 2 : 1;
+
     // Helper to shorten names
     function shortenName(name: string, maxLen = 10) {
         if (!name) return '';
@@ -167,12 +182,15 @@ function Currency({ data, showJson }: any) {
     const renderLabel = (name: string, percentage: number) => {
         return `${shortenName(name)}: ${percentage.toFixed(1)}%`;
     };
-    // Dynamic sizing: use fixed width for card and chart, but height is auto when chart is hidden
-    const cardBase = 'flex flex-col items-center p-4 transition-all duration-300';
-    const cardChart = 'w-[600px] h-[555px]'; // 2x wider, 1.5x taller
-    const cardNoChart = 'w-[320px] h-auto'; // default size, auto height
+
     return (
-        <div className={`${cardBase} ${showChart ? cardChart : cardNoChart}`}>
+        <div
+            className="flex flex-col items-center p-4 transition-all duration-300"
+            style={{
+                width: CARD_SIZE_UNIT * widthMultiplier,
+                height: CARD_SIZE_UNIT * heightMultiplier,
+            }}
+        >
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
@@ -195,7 +213,7 @@ function Currency({ data, showJson }: any) {
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
             {breakdown.length > 0 && showChart && (
-                <div className="w-full flex flex-col items-center mt-2">
+                <div className="w-full flex-grow flex flex-col items-center mt-2">
                     <PieChartDisplay breakdown={breakdown} colors={COLORS} labelFormatter={renderLabel} />
                 </div>
             )}
@@ -206,9 +224,12 @@ function Currency({ data, showJson }: any) {
 
 function Debt({ data, showJson }: any) {
     return (
-        <div className="flex flex-col items-center">
-            <div className="text-base mb-2 text-center">{data.description}</div>
-            <div className="text-lg font-semibold text-center">
+        <div
+            className="flex flex-col items-center justify-center text-center p-4"
+            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
+        >
+            <div className="text-base mb-2">{data.description}</div>
+            <div className="text-lg font-semibold">
                 {data.theyPayMe ? (
                     <>
                         {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
@@ -226,12 +247,15 @@ function Debt({ data, showJson }: any) {
 
 function Service({ data, showJson }: any) {
     return (
-        <div className="flex flex-col items-center">
-            <h2 className="text-lg font-semibold mb-1 text-center">{data.name}</h2>
-            <div className="text-base font-medium mb-2 text-center">
+        <div
+            className="flex flex-col items-center justify-center text-center p-4"
+            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
+        >
+            <h2 className="text-lg font-semibold mb-1">{data.name}</h2>
+            <div className="text-base font-medium mb-2">
                 {formatMoney(data.cost)} {data.currency}
             </div>
-            <div className="text-sm text-gray-600 mb-2 text-center">
+            <div className="text-sm text-gray-600 mb-2">
                 {data.isManual ? 'Manual payment' : 'Payment is automatic'}
             </div>
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
