@@ -176,7 +176,7 @@ function Account({ data, showJson }: any) {
                 {formatMoney(data.balance)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
-            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
@@ -231,7 +231,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
-                    className={`ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors cursor-pointer ${showChart ? 'bg-blue-100 text-blue-600' : 'text-gray-500'
+                    className={`ml-2 p-1 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${showChart ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
                         }`}
                     aria-label={showChart ? 'Hide chart' : 'Show chart'}
                     onClick={e => { e.stopPropagation(); updateSize(); }}
@@ -239,7 +239,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
                 >
                     <PieChartIcon
                         size={20}
-                        className={`transition-all hover:text-black ${showChart ? 'opacity-100 scale-110' : 'opacity-60'
+                        className={`transition-all hover:text-foreground ${showChart ? 'opacity-100 scale-110' : 'opacity-60'
                             }`}
                     />
                 </button>
@@ -260,7 +260,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
                     />
                 </div>
             )}
-            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
@@ -280,7 +280,7 @@ function Debt({ data, showJson }: any) {
                     </>
                 )}
             </div>
-            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
@@ -292,10 +292,10 @@ function Service({ data, showJson }: any) {
             <div className="text-base font-medium mb-2">
                 {formatMoney(data.cost)} {data.currency}
             </div>
-            <div className="text-sm text-gray-600 mb-2">
+            <div className="text-sm text-muted-foreground mb-2">
                 {data.isManual ? 'Manual payment' : 'Payment is automatic'}
             </div>
-            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+            {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
 }
