@@ -6,6 +6,7 @@ import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
@@ -79,21 +80,22 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             />
             <div className="flex justify-end mb-2 gap-2 items-center">
                 <button
-                    className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+                    className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
                     onClick={() => setSortDesc((v) => !v)}
                 >
                     Sort by edit date: {sortDesc ? "Newest first" : "Oldest first"}
                 </button>
                 <button
-                    className="p-1 rounded hover:bg-gray-200 focus:outline-none"
+                    className="p-1 rounded hover:bg-secondary/80 focus:outline-none transition-colors"
                     aria-label={showJson ? 'Hide all JSON' : 'Show all JSON'}
                     onClick={() => setShowJson(v => !v)}
                 >
                     {/* Dev mode icon: code brackets */}
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${showJson ? 'text-blue-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${showJson ? 'text-blue-600' : 'text-muted-foreground'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
                     </svg>
                 </button>
+                <ThemeToggle />
             </div>
             {/* CSS Grid masonry layout */}
             <div className="dashboard-grid mt-4">
