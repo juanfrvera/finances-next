@@ -1,5 +1,5 @@
 "use client";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import React from "react";
 
 interface PieChartDisplayProps {
@@ -23,24 +23,22 @@ export default function PieChartDisplay({ breakdown, colors = DEFAULT_COLORS, la
         return `${shortenName(name)}: ${balance.toFixed(2)}`;
     };
     return (
-        <ResponsiveContainer width={520} height={330}>
-            <PieChart>
-                <Pie
-                    data={breakdown}
-                    dataKey="balance"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={130}
-                    label={renderLabel}
-                >
-                    {breakdown.map((entry, idx) => (
-                        <Cell key={`cell-${entry.id}`} fill={colors[idx % colors.length]} />
-                    ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}`} />
-                <Legend />
-            </PieChart>
-        </ResponsiveContainer>
+        <PieChart width={520} height={330}>
+            <Pie
+                data={breakdown}
+                dataKey="balance"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={130}
+                label={renderLabel}
+            >
+                {breakdown.map((entry, idx) => (
+                    <Cell key={`cell-${entry.id}`} fill={colors[idx % colors.length]} />
+                ))}
+            </Pie>
+            <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}`} />
+            <Legend />
+        </PieChart>
     );
 }

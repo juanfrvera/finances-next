@@ -1,11 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
-import PieChartDisplay from "./PieChartDisplay";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
+
+// Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
+const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-32">Loading chart...</div>
+});
 
 interface DashboardClientProps {
     items: any[];
