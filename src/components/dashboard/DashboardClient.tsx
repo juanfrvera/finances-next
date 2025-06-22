@@ -142,9 +142,8 @@ function ItemCard(props: any) {
 
     return (
         <Card
-            className={`relative group p-0 cursor-pointer ${isExpanded ? 'expanded-card' : ''}`} // p-0 because children will have padding
+            className={`relative group p-0 cursor-pointer transition-all duration-200 hover:shadow-lg hover:bg-accent/50 hover:border-accent-foreground/20 hover:scale-[1.02] dark:hover:bg-accent/30 dark:hover:border-accent-foreground/30 ${isExpanded ? 'expanded-card' : ''}`} // p-0 because children will have padding
             style={{
-                transition: 'background 0.2s',
                 // Let CSS Grid handle the sizing, just set minimum dimensions
                 minWidth: CARD_SIZE_UNIT,
                 minHeight: CARD_SIZE_UNIT,
@@ -155,12 +154,6 @@ function ItemCard(props: any) {
                 }),
             }}
             onClick={onClick}
-            onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = 'radial-gradient(circle, white 40%, #e5e7eb 100%)';
-            }}
-            onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = '';
-            }}
         >
             {rest.type === 'account' && <Account data={rest} showJson={showJson} />}
             {rest.type === 'currency' && <Currency data={rest} showJson={showJson} onUpdateSize={onUpdateSize} />}
