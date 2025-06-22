@@ -22,7 +22,6 @@ export default async function Dashboard() {
         id: acc._id,
         name: acc.name,
         balance: Number(acc.balance),
-        percentage: sum > 0 ? (Number(acc.balance) / sum) * 100 : 0,
       }));
       return { ...item, value: sum, accountBreakdown };
     }

@@ -3,9 +3,9 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import React from "react";
 
 interface PieChartDisplayProps {
-    breakdown: Array<{ id: string; name: string; percentage: number }>;
+    breakdown: Array<{ id: string; name: string; balance: number }>;
     colors?: string[];
-    labelFormatter?: (name: string, percentage: number) => string;
+    labelFormatter?: (name: string, balance: number) => string;
 }
 
 const DEFAULT_COLORS = [
@@ -18,16 +18,16 @@ function shortenName(name: string, maxLen = 10) {
 }
 
 export default function PieChartDisplay({ breakdown, colors = DEFAULT_COLORS, labelFormatter }: PieChartDisplayProps) {
-    const renderLabel = ({ name, percentage }: { name: string, percentage: number }) => {
-        if (labelFormatter) return labelFormatter(name, percentage);
-        return `${shortenName(name)}: ${percentage.toFixed(1)}%`;
+    const renderLabel = ({ name, balance }: { name: string, balance: number }) => {
+        if (labelFormatter) return labelFormatter(name, balance);
+        return `${shortenName(name)}: ${balance.toFixed(2)}`;
     };
     return (
         <ResponsiveContainer width={520} height={330}>
             <PieChart>
                 <Pie
                     data={breakdown}
-                    dataKey="percentage"
+                    dataKey="balance"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
@@ -38,7 +38,7 @@ export default function PieChartDisplay({ breakdown, colors = DEFAULT_COLORS, la
                         <Cell key={`cell-${entry.id}`} fill={colors[idx % colors.length]} />
                     ))}
                 </Pie>
-                <Tooltip formatter={(value: any) => `${value.toFixed(2)}%`} />
+                <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}`} />
                 <Legend />
             </PieChart>
         </ResponsiveContainer>

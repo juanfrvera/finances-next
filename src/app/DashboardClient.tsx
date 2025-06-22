@@ -180,7 +180,17 @@ function Account({ data, showJson }: any) {
     );
 }
 
-function Currency({ data, showJson, onUpdateSize }: any) {
+interface CurrencyProps {
+    data: {
+        currency: string;
+        value: number;
+        accountBreakdown?: { id: string; name: string; balance: number }[];
+    };
+    showJson: boolean;
+    onUpdateSize: (size: { width: number; height: number }) => void;
+}
+
+function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     const COLORS = [
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
@@ -211,8 +221,8 @@ function Currency({ data, showJson, onUpdateSize }: any) {
         return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
     }
     // Custom label renderer for Pie slices
-    const renderLabel = (name: string, percentage: number) => {
-        return `${shortenName(name)}: ${percentage.toFixed(1)}%`;
+    const renderLabel = (name: string, balance: number) => {
+        return `${shortenName(name)}: ${balance.toFixed(2)}`;
     };
 
     return (
