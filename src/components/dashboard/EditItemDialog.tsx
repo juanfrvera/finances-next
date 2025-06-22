@@ -3,6 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { useState } from "react";
 import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import { MoreVertical, X, Trash2 } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
     open: boolean;
@@ -40,23 +48,64 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
     if (!item) return null;
     let form: React.ReactNode = null;
     if (item.type === 'service') {
-        form = <ServiceForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} showDelete onDelete={handleDelete} />;
+        form = <ServiceForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     } else if (item.type === 'account') {
-        form = <AccountForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} showDelete onDelete={handleDelete} />;
+        form = <AccountForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     } else if (item.type === 'debt') {
-        form = <DebtForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} showDelete onDelete={handleDelete} />;
+        form = <DebtForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     } else if (item.type === 'currency') {
-        form = <CurrencyForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} showDelete onDelete={handleDelete} />;
+        form = <CurrencyForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     }
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
+            <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+                {/* Action buttons positioned absolutely */}
+                <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+                    {/* More actions dropdown */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                disabled={deleting}
+                            >
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">More options</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                variant="destructive"
+                                onClick={handleDelete}
+                                disabled={deleting}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                {deleting ? "Deleting..." : "Delete item"}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {/* Close button */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => onOpenChange(false)}
+                    >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Close</span>
+                    </Button>
+                </div>
+
+                {/* Standard dialog header */}
+                <DialogHeader className="pr-20">
                     <DialogTitle>Edit Item</DialogTitle>
                     <DialogDescription>
-                        Edit the details of your item and save changes, or delete the item.
+                        Edit the details of your item and save changes.
                     </DialogDescription>
                 </DialogHeader>
+                
                 {form}
             </DialogContent>
         </Dialog>
