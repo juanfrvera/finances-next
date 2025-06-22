@@ -4,6 +4,7 @@ import AddItemDialog from "./AddItemDialog";
 import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
 import PieChartDisplay from "./PieChartDisplay";
+import { PieChart as PieChartIcon } from "lucide-react";
 
 const CARD_SIZE_UNIT = 220; // px
 const GRID_GAP = 16; // 1rem = 16px (should match CSS)
@@ -226,18 +227,17 @@ function Currency({ data, showJson, onUpdateSize }: any) {
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
-                    className="ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none"
+                    className={`ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors cursor-pointer ${showChart ? 'bg-blue-100 text-blue-600' : 'text-gray-500'
+                        }`}
                     aria-label={showChart ? 'Hide chart' : 'Show chart'}
                     onClick={e => { e.stopPropagation(); updateSize(); }}
                     tabIndex={0}
                 >
-                    {showChart ? (
-                        // Eye icon (show)
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.458 12C2.732 7.943 6.523 5 12 5c5.477 0 9.268 2.943 10.542 7-1.274 4.057-5.065 7-10.542 7-5.477 0-9.268-2.943-10.542-7z" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth={2} /></svg>
-                    ) : (
-                        // Eye-off icon (hide)
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.477 0-9.268-2.943-10.542-7a10.056 10.056 0 012.908-4.568M6.634 6.634A9.956 9.956 0 0112 5c5.477 0 9.268 2.943 10.542 7a9.956 9.956 0 01-4.338 5.074M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" /></svg>
-                    )}
+                    <PieChartIcon
+                        size={20}
+                        className={`transition-all hover:text-black ${showChart ? 'opacity-100 scale-110' : 'opacity-60'
+                            }`}
+                    />
                 </button>
             </div>
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center mb-2">
