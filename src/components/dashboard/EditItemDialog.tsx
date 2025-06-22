@@ -11,6 +11,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { showToast, toastMessages } from "@/lib/toast";
 
 export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
     open: boolean;
@@ -24,9 +25,13 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
 
     async function handleSave(data: any) {
         setLoading(true);
+        const toastId = showToast.loading(toastMessages.saving);
         try {
             const updated = await updateItemToDb({ ...item, ...data });
             onItemUpdated(updated);
+            showToast.update(toastId, toastMessages.saved, 'success');
+        } catch (error) {
+            showToast.update(toastId, toastMessages.saveError, 'error');
         } finally {
             setLoading(false);
             onOpenChange(false);
@@ -34,9 +39,13 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
     }
     async function handleDelete() {
         setDeleting(true);
+        const toastId = showToast.loading(toastMessages.deleting);
         try {
             await deleteItemFromDb(item._id);
             onItemDeleted(item._id);
+            showToast.update(toastId, toastMessages.deleted, 'success');
+        } catch (error) {
+            showToast.update(toastId, toastMessages.deleteError, 'error');
         } finally {
             setDeleting(false);
             onOpenChange(false);

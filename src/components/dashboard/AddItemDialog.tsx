@@ -6,6 +6,7 @@ import { Plus, ArrowLeft } from "lucide-react";
 import { addItemToDb } from "@/app/actions";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
+import { showToast, toastMessages } from "@/lib/toast";
 
 // Types for items
 interface AccountItem {
@@ -114,11 +115,18 @@ function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, on
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { name: string; cost: number; currency: string; isManual: boolean }) {
         setLoading(true);
-        const item = { type: 'service', ...data };
-        const created = await addItemToDb(item);
-        onItemCreated(created);
-        setLoading(false);
-        onClose();
+        const toastId = showToast.loading(toastMessages.creating);
+        try {
+            const item = { type: 'service', ...data };
+            const created = await addItemToDb(item);
+            onItemCreated(created);
+            showToast.update(toastId, toastMessages.created, 'success');
+            onClose();
+        } catch (error) {
+            showToast.update(toastId, toastMessages.createError, 'error');
+        } finally {
+            setLoading(false);
+        }
     }
     return (
         <ServiceForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
@@ -129,11 +137,18 @@ function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, on
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { name: string; balance: number; currency: string }) {
         setLoading(true);
-        const item = { type: 'account', ...data };
-        const created = await addItemToDb(item);
-        onItemCreated(created);
-        setLoading(false);
-        onClose();
+        const toastId = showToast.loading(toastMessages.creating);
+        try {
+            const item = { type: 'account', ...data };
+            const created = await addItemToDb(item);
+            onItemCreated(created);
+            showToast.update(toastId, toastMessages.created, 'success');
+            onClose();
+        } catch (error) {
+            showToast.update(toastId, toastMessages.createError, 'error');
+        } finally {
+            setLoading(false);
+        }
     }
     return (
         <AccountForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
@@ -144,11 +159,18 @@ function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onIte
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { description: string; withWho: string; amount: number; currency: string; theyPayMe: boolean }) {
         setLoading(true);
-        const item = { type: 'debt', ...data };
-        const created = await addItemToDb(item);
-        onItemCreated(created);
-        setLoading(false);
-        onClose();
+        const toastId = showToast.loading(toastMessages.creating);
+        try {
+            const item = { type: 'debt', ...data };
+            const created = await addItemToDb(item);
+            onItemCreated(created);
+            showToast.update(toastId, toastMessages.created, 'success');
+            onClose();
+        } catch (error) {
+            showToast.update(toastId, toastMessages.createError, 'error');
+        } finally {
+            setLoading(false);
+        }
     }
     return (
         <DebtForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
@@ -159,11 +181,18 @@ function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, o
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { currency: string }) {
         setLoading(true);
-        const item = { type: 'currency', ...data };
-        const created = await addItemToDb(item);
-        onItemCreated(created);
-        setLoading(false);
-        onClose();
+        const toastId = showToast.loading(toastMessages.creating);
+        try {
+            const item = { type: 'currency', ...data };
+            const created = await addItemToDb(item);
+            onItemCreated(created);
+            showToast.update(toastId, toastMessages.created, 'success');
+            onClose();
+        } catch (error) {
+            showToast.update(toastId, toastMessages.createError, 'error');
+        } finally {
+            setLoading(false);
+        }
     }
     return (
         <CurrencyForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
