@@ -223,7 +223,7 @@ function Currency({ data, showJson, onUpdateSize }: any) {
     };
 
     return (
-        <div className="flex flex-col items-center h-full p-4">
+        <div className="flex flex-col items-center justify-center h-full p-4">
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
