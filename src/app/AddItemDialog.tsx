@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, ArrowLeft } from "lucide-react";
 import { addItemToDb } from "./actions";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
+import { CARD_SIZE_UNIT } from "@/lib/constants";
 
 // Types for items
 interface AccountItem {
@@ -42,7 +43,10 @@ export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item:
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Card className="flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-4 h-full min-h-[120px]">
+                <Card
+                    className="flex flex-col items-center justify-center cursor-pointer transition-all border-2 border-dashed border-gray-300 hover:border-gray-400 hover:shadow-lg p-4"
+                    style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
+                >
                     <span className="text-lg font-semibold mb-2">Add new</span>
                     <Plus size={40} className="text-primary" />
                 </Card>

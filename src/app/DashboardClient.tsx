@@ -5,9 +5,7 @@ import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
 import PieChartDisplay from "./PieChartDisplay";
 import { PieChart as PieChartIcon } from "lucide-react";
-
-const CARD_SIZE_UNIT = 220; // px
-const GRID_GAP = 16; // 1rem = 16px (should match CSS)
+import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
 
 interface DashboardClientProps {
     items: any[];
@@ -93,12 +91,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             </div>
             {/* CSS Grid masonry layout */}
             <div className="dashboard-grid mt-4">
-                <div
-                    className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg"
-                    style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
-                >
-                    <AddItemDialog onItemCreated={handleItemCreated} />
-                </div>
+                <AddItemDialog onItemCreated={handleItemCreated} />
                 {sortedItems.map((item, idx) => {
                     const itemId = item._id?.toString() ?? `item-${idx}`;
                     const cardSize = cardSizes[itemId] || { width: 1, height: 1 }; // Default to 1x1
