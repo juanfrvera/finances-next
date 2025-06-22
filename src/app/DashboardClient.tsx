@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddItemDialog from "./AddItemDialog";
 import EditItemDialog from "./EditItemDialog";
 import { Card } from "@/components/ui/card";
@@ -29,6 +29,8 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [showJson, setShowJson] = useState(true); // NEW: toggle for JSON.stringify
+    const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
+
     function handleItemCreated(newItem: any) {
         setClientItems((prev) => [newItem, ...prev]);
     }
@@ -39,6 +41,13 @@ export default function DashboardClient({ items }: DashboardClientProps) {
         setClientItems((prev) => prev.filter(i => i._id !== id));
         // Also remove from initial items if present
         // (If you want to support SSR fallback, you may want to filter from both)
+    }
+
+    function updateCardSize(itemId: string, size: { width: number; height: number }) {
+        setCardSizes(prev => ({
+            ...prev,
+            [itemId]: size
+        }));
     }
 
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
@@ -80,8 +89,8 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                     </svg>
                 </button>
             </div>
-            {/* Change grid to flex-wrap so cards can have different widths */}
-            <div className="mt-4 flex flex-wrap gap-4 items-start">
+            {/* CSS Grid masonry layout */}
+            <div className="dashboard-grid mt-4">
                 <div
                     className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg"
                     style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
@@ -89,6 +98,10 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                     <AddItemDialog onItemCreated={handleItemCreated} />
                 </div>
                 {sortedItems.map((item, idx) => {
+                    const itemId = item._id?.toString() ?? `item-${idx}`;
+                    const cardSize = cardSizes[itemId] || { width: 1, height: 1 }; // Default to 1x1
+                    const isExpanded = cardSize.width > 1 || cardSize.height > 1;
+
                     if (
                         item.type === "account" ||
                         item.type === "currency" ||
@@ -97,17 +110,22 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                     ) {
                         return (
                             <div
-                                key={item._id?.toString() ?? Math.random() + idx}
+                                key={itemId}
                                 onClick={() => { setSelectedItem(item); setEditDialogOpen(true); }}
-                                className="cursor-pointer"
+                                className={`cursor-pointer ${isExpanded ? 'expanded-card' : ''}`}
                             >
-                                <ItemCard {...item} showJson={showJson} />
+                                <ItemCard
+                                    {...item}
+                                    showJson={showJson}
+                                    cardSize={cardSize}
+                                    onUpdateSize={(size: { width: number; height: number }) => updateCardSize(itemId, size)}
+                                />
                             </div>
                         );
                     }
                     return (
-                        <div key={item._id?.toString() ?? Math.random() + idx}>
-                            <Card style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
+                        <div key={itemId}>
+                            <Card style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }} className="p-4">
                                 {showJson && <pre>{JSON.stringify(item, null, 2)}</pre>}
                             </Card>
                         </div>
@@ -120,12 +138,16 @@ export default function DashboardClient({ items }: DashboardClientProps) {
 
 function ItemCard(props: any) {
     // Remove overflow-hidden so child content can overflow if needed
-    const { showJson, ...rest } = props;
+    const { showJson, cardSize, onUpdateSize, ...rest } = props;
+    const isExpanded = cardSize.width > 1 || cardSize.height > 1;
+
     return (
         <Card
-            className="relative group" // p-0 because children will have padding
+            className="relative group p-0" // p-0 because children will have padding
             style={{
                 transition: 'background 0.2s',
+                width: CARD_SIZE_UNIT * cardSize.width,
+                height: CARD_SIZE_UNIT * cardSize.height,
             }}
             onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.background = 'radial-gradient(circle, white 40%, #e5e7eb 100%)';
@@ -135,11 +157,11 @@ function ItemCard(props: any) {
             }}
         >
             {rest.type === 'account' && <Account data={rest} showJson={showJson} />}
-            {rest.type === 'currency' && <Currency data={rest} showJson={showJson} />}
+            {rest.type === 'currency' && <Currency data={rest} showJson={showJson} onUpdateSize={onUpdateSize} />}
             {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
             {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
-                <div style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
+                <div className="flex items-center justify-center p-4" style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
                     {showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>}
                 </div>
             )}
@@ -149,10 +171,7 @@ function ItemCard(props: any) {
 
 function Account({ data, showJson }: any) {
     return (
-        <div
-            className="flex flex-col items-center justify-center text-center"
-            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
-        >
+        <div className="flex flex-col items-center justify-center text-center p-4 h-full">
             <h2 className="text-lg font-semibold mb-2">{data.name}</h2>
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center">
                 {formatMoney(data.balance)}
@@ -163,15 +182,30 @@ function Account({ data, showJson }: any) {
     );
 }
 
-function Currency({ data, showJson }: any) {
+function Currency({ data, showJson, onUpdateSize }: any) {
     const COLORS = [
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
     const breakdown = data.accountBreakdown || [];
     const [showChart, setShowChart] = useState(true);
 
-    const widthMultiplier = showChart ? 2 : 1;
-    const heightMultiplier = showChart ? 2 : 1;
+    // Update card size when chart visibility changes
+    const updateSize = () => {
+        const newShowChart = !showChart;
+        setShowChart(newShowChart);
+
+        if (breakdown.length > 0) {
+            const size = newShowChart ? { width: 2, height: 2 } : { width: 1, height: 1 };
+            onUpdateSize(size);
+        }
+    };
+
+    // Set initial size on mount
+    useEffect(() => {
+        if (breakdown.length > 0 && showChart) {
+            onUpdateSize({ width: 2, height: 2 });
+        }
+    }, []); // Only run on mount
 
     // Helper to shorten names
     function shortenName(name: string, maxLen = 10) {
@@ -184,19 +218,13 @@ function Currency({ data, showJson }: any) {
     };
 
     return (
-        <div
-            className="flex flex-col items-center transition-all duration-300"
-            style={{
-                width: CARD_SIZE_UNIT * widthMultiplier,
-                height: CARD_SIZE_UNIT * heightMultiplier,
-            }}
-        >
-            <div className="flex items-center w-full justify-between mb-2 p-4">
+        <div className="flex flex-col items-center h-full p-4">
+            <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
                 <button
                     className="ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none"
                     aria-label={showChart ? 'Hide chart' : 'Show chart'}
-                    onClick={e => { e.stopPropagation(); setShowChart(v => !v); }}
+                    onClick={e => { e.stopPropagation(); updateSize(); }}
                     tabIndex={0}
                 >
                     {showChart ? (
@@ -224,10 +252,7 @@ function Currency({ data, showJson }: any) {
 
 function Debt({ data, showJson }: any) {
     return (
-        <div
-            className="flex flex-col items-center justify-center text-center"
-            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
-        >
+        <div className="flex flex-col items-center justify-center text-center p-4 h-full">
             <div className="text-base mb-2">{data.description}</div>
             <div className="text-lg font-semibold">
                 {data.theyPayMe ? (
@@ -247,10 +272,7 @@ function Debt({ data, showJson }: any) {
 
 function Service({ data, showJson }: any) {
     return (
-        <div
-            className="flex flex-col items-center justify-center text-center"
-            style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}
-        >
+        <div className="flex flex-col items-center justify-center text-center p-4 h-full">
             <h2 className="text-lg font-semibold mb-1">{data.name}</h2>
             <div className="text-base font-medium mb-2">
                 {formatMoney(data.cost)} {data.currency}
