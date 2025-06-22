@@ -255,9 +255,9 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
             </div>
             {breakdown.length > 0 && showChart && (
                 <div className="w-full flex-grow flex flex-col items-center mt-2">
-                    <PieChartDisplay 
-                        breakdown={breakdown} 
-                        colors={COLORS} 
+                    <PieChartDisplay
+                        breakdown={breakdown}
+                        colors={COLORS}
                         labelFormatter={renderLabel}
                         width={400}
                         height={280}

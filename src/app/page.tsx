@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import DashboardClient from "./DashboardClient";
+import DashboardClient from "@/components/dashboard/DashboardClient";
 
 export default async function Dashboard() {
   const db = await getDb();

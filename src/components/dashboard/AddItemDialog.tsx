@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
-import { addItemToDb } from "./actions";
+import { addItemToDb } from "@/app/actions";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 

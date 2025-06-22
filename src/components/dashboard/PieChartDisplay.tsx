@@ -20,9 +20,9 @@ function shortenName(name: string, maxLen = 10) {
     return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
 }
 
-export default function PieChartDisplay({ 
-    breakdown, 
-    colors = DEFAULT_COLORS, 
+export default function PieChartDisplay({
+    breakdown,
+    colors = DEFAULT_COLORS,
     labelFormatter,
     width = 520,
     height = 330,

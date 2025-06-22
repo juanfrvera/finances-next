@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { useState } from "react";
-import { addItemToDb, updateItemToDb, deleteItemFromDb } from "./actions";
+import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
 
 export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
     open: boolean;
