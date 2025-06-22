@@ -255,7 +255,14 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
             </div>
             {breakdown.length > 0 && showChart && (
                 <div className="w-full flex-grow flex flex-col items-center mt-2">
-                    <PieChartDisplay breakdown={breakdown} colors={COLORS} labelFormatter={renderLabel} />
+                    <PieChartDisplay 
+                        breakdown={breakdown} 
+                        colors={COLORS} 
+                        labelFormatter={renderLabel}
+                        width={400}
+                        height={280}
+                        outerRadius={90}
+                    />
                 </div>
             )}
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-gray-50 rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}

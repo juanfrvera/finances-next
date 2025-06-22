@@ -6,6 +6,9 @@ interface PieChartDisplayProps {
     breakdown: Array<{ id: string; name: string; balance: number }>;
     colors?: string[];
     labelFormatter?: (name: string, balance: number) => string;
+    width?: number;
+    height?: number;
+    outerRadius?: number;
 }
 
 const DEFAULT_COLORS = [
@@ -17,20 +20,27 @@ function shortenName(name: string, maxLen = 10) {
     return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
 }
 
-export default function PieChartDisplay({ breakdown, colors = DEFAULT_COLORS, labelFormatter }: PieChartDisplayProps) {
+export default function PieChartDisplay({ 
+    breakdown, 
+    colors = DEFAULT_COLORS, 
+    labelFormatter,
+    width = 520,
+    height = 330,
+    outerRadius = 130
+}: PieChartDisplayProps) {
     const renderLabel = ({ name, balance }: { name: string, balance: number }) => {
         if (labelFormatter) return labelFormatter(name, balance);
         return `${shortenName(name)}: ${balance.toFixed(2)}`;
     };
     return (
-        <PieChart width={520} height={330}>
+        <PieChart width={width} height={height}>
             <Pie
                 data={breakdown}
                 dataKey="balance"
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={130}
+                outerRadius={outerRadius}
                 label={renderLabel}
             >
                 {breakdown.map((entry, idx) => (
