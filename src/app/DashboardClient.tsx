@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import PieChartDisplay from "./PieChartDisplay";
 
 const CARD_SIZE_UNIT = 220; // px
+const GRID_GAP = 16; // 1rem = 16px
 
 interface DashboardClientProps {
     items: any[];
@@ -141,13 +142,17 @@ function ItemCard(props: any) {
     const { showJson, cardSize, onUpdateSize, ...rest } = props;
     const isExpanded = cardSize.width > 1 || cardSize.height > 1;
 
+    // Calculate actual size including grid gaps
+    const actualWidth = CARD_SIZE_UNIT * cardSize.width + GRID_GAP * (cardSize.width - 1);
+    const actualHeight = CARD_SIZE_UNIT * cardSize.height + GRID_GAP * (cardSize.height - 1);
+
     return (
         <Card
             className="relative group p-0" // p-0 because children will have padding
             style={{
                 transition: 'background 0.2s',
-                width: CARD_SIZE_UNIT * cardSize.width,
-                height: CARD_SIZE_UNIT * cardSize.height,
+                width: actualWidth,
+                height: actualHeight,
             }}
             onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.background = 'radial-gradient(circle, white 40%, #e5e7eb 100%)';
@@ -161,7 +166,7 @@ function ItemCard(props: any) {
             {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
             {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
-                <div className="flex items-center justify-center p-4" style={{ width: CARD_SIZE_UNIT, height: CARD_SIZE_UNIT }}>
+                <div className="flex items-center justify-center p-4 w-full h-full">
                     {showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>}
                 </div>
             )}
