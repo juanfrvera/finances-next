@@ -124,9 +124,10 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, 220px);
   gap: 1rem;
   grid-auto-flow: row dense;
+  justify-content: start;
 }
 
 .expanded-card {

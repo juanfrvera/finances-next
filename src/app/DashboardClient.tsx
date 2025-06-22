@@ -6,8 +6,7 @@ import { Card } from "@/components/ui/card";
 import PieChartDisplay from "./PieChartDisplay";
 
 const CARD_SIZE_UNIT = 220; // px
-const WIDTH_GAP = 16; // 1rem = 16px
-const HEIGHT_GAP = 16; // 1rem = 16px
+const GRID_GAP = 16; // 1rem = 16px (should match CSS)
 
 interface DashboardClientProps {
     items: any[];
@@ -139,17 +138,19 @@ function ItemCard(props: any) {
     // Remove overflow-hidden so child content can overflow if needed
     const { showJson, cardSize, onUpdateSize, isExpanded, onClick, ...rest } = props;
 
-    // Calculate actual size including grid gaps
-    const actualWidth = CARD_SIZE_UNIT * cardSize.width + WIDTH_GAP * (cardSize.width - 1);
-    const actualHeight = CARD_SIZE_UNIT * cardSize.height + HEIGHT_GAP * (cardSize.height - 1);
-
     return (
         <Card
             className={`relative group p-0 cursor-pointer ${isExpanded ? 'expanded-card' : ''}`} // p-0 because children will have padding
             style={{
                 transition: 'background 0.2s',
-                width: actualWidth,
-                height: actualHeight,
+                // Let CSS Grid handle the sizing, just set minimum dimensions
+                minWidth: CARD_SIZE_UNIT,
+                minHeight: CARD_SIZE_UNIT,
+                // Ensure we fill the grid area for expanded cards
+                ...(isExpanded && {
+                    width: '100%',
+                    height: '100%',
+                }),
             }}
             onClick={onClick}
             onMouseEnter={e => {
