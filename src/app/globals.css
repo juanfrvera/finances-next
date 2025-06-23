@@ -127,7 +127,7 @@
   grid-template-columns: repeat(auto-fill, 220px);
   gap: 1rem;
   grid-auto-flow: row dense;
-  justify-content: start;
+  justify-content: center;
 }
 
 .expanded-card {

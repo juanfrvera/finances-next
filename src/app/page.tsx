@@ -31,7 +31,7 @@ export default async function Dashboard() {
   const hasItems = mappedItems.length > 0;
 
   return (
-    <div className="px-4 md:px-12 lg:px-32">
+    <div className="px-4 md:px-12 lg:px-32 pb-8">
       {!hasItems && (
         <div className="text-center my-8">
           <h1 className="text-2xl font-bold mb-2">Welcome to your Dashboard</h1>
