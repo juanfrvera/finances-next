@@ -336,6 +336,7 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
                         value={form.newBalance}
                         onChange={(e) => setForm(prev => ({ ...prev, newBalance: e.target.value }))}
                         placeholder="Enter new balance"
+                        autoFocus
                         required
                     />
                 </div>
