@@ -1,7 +1,7 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { MoreVertical, X, Trash2, ArrowLeft } from "lucide-react";
@@ -37,6 +37,13 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [selectedAction, setSelectedAction] = useState<AccountAction>(null);
+
+    // Reset selectedAction when dialog opens
+    useEffect(() => {
+        if (open) {
+            setSelectedAction(null);
+        }
+    }, [open]);
 
     async function handleSave(data: any) {
         setLoading(true);
