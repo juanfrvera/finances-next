@@ -281,3 +281,89 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
         </form>
     );
 }
+
+export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
+    initial?: { name: string; balance: number; currency: string };
+    loading: boolean;
+    onSubmit: (data: { newBalance: number; motive?: string }) => void;
+    onCancel?: () => void;
+}) {
+    const [form, setForm] = useState({
+        newBalance: initial?.balance?.toString() || '',
+        motive: '',
+    });
+    
+    const isValid = form.newBalance && !isNaN(Number(form.newBalance));
+    const hasChanged = form.newBalance !== (initial?.balance?.toString() || '');
+    
+    useEffect(() => {
+        if (initial) {
+            setForm({
+                newBalance: initial.balance?.toString() || '',
+                motive: '',
+            });
+        }
+    }, [initial]);
+    
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!isValid) return;
+        onSubmit({
+            newBalance: Number(form.newBalance),
+            motive: form.motive || undefined,
+        });
+    }
+    
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="space-y-2">
+                <div>
+                    <Label htmlFor="currentBalance">Current Balance</Label>
+                    <Input
+                        id="currentBalance"
+                        type="text"
+                        value={`${initial?.balance || 0} ${initial?.currency || ''}`}
+                        readOnly
+                        className="bg-muted text-muted-foreground"
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="newBalance">New Balance</Label>
+                    <Input
+                        id="newBalance"
+                        type="number"
+                        step="0.01"
+                        value={form.newBalance}
+                        onChange={(e) => setForm(prev => ({ ...prev, newBalance: e.target.value }))}
+                        placeholder="Enter new balance"
+                        required
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="motive">Reason for change (optional)</Label>
+                    <Input
+                        id="motive"
+                        type="text"
+                        value={form.motive}
+                        onChange={(e) => setForm(prev => ({ ...prev, motive: e.target.value }))}
+                        placeholder="e.g., Bank transfer, Cash deposit, Error correction"
+                    />
+                </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+                <button 
+                    type="submit" 
+                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" 
+                    disabled={!isValid || !hasChanged || loading}
+                >
+                    {loading && <Spinner />} {loading ? "Updating..." : "Update Balance"}
+                </button>
+                {onCancel && (
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>
+                        Cancel
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}

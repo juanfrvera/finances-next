@@ -1,8 +1,8 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
+import { ServiceForm, AccountForm, DebtForm, CurrencyForm, UpdateBalanceForm } from "./ItemForms";
 import { useState, useEffect } from "react";
-import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, updateAccountBalance } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { MoreVertical, X, Trash2, ArrowLeft } from "lucide-react";
 import {
@@ -59,6 +59,22 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onOpenChange(false);
         }
     }
+
+    async function handleUpdateBalance(data: { newBalance: number; motive?: string }) {
+        setLoading(true);
+        const toastId = showToast.loading('Updating balance...');
+        try {
+            const updated = await updateAccountBalance(item._id, data.newBalance, data.motive);
+            onItemUpdated(updated);
+            showToast.update(toastId, 'Balance updated successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to update balance', 'error');
+        } finally {
+            setLoading(false);
+            onOpenChange(false);
+        }
+    }
+
     async function handleDelete() {
         setDeleting(true);
         const toastId = showToast.loading(toastMessages.deleting);
@@ -166,8 +182,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             case 'updateBalance':
                 dialogTitle = "Update Balance";
                 dialogDescription = "Update the current balance of the account.";
-                // TODO: Create UpdateBalanceForm
-                form = <div className="p-4 text-center text-gray-500">Update Balance Form - Coming Soon</div>;
+                form = <UpdateBalanceForm initial={item} loading={loading} onSubmit={handleUpdateBalance} onCancel={handleCancel} />;
                 break;
             case 'doTransaction':
                 dialogTitle = "New Transaction";

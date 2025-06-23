@@ -46,3 +46,32 @@ export async function deleteItemFromDb(id: string) {
     await db.collection("items").deleteOne({ _id });
     return true;
 }
+
+export async function updateAccountBalance(itemId: string, newBalance: number, motive?: string) {
+    if (!itemId) throw new Error("Missing itemId for balance update");
+    const db = await getDb();
+    const _id = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
+    const editDate = new Date().toISOString();
+    
+    // Update the balance and editDate
+    // TODO: In the future, create a transaction record with motive, balance, and current date
+    await db.collection("items").updateOne(
+        { _id }, 
+        { 
+            $set: { 
+                balance: newBalance, 
+                editDate
+            } 
+        }
+    );
+    
+    const updated = await db.collection("items").findOne({ _id });
+    if (!updated) return null;
+    
+    return {
+        ...updated,
+        _id: updated._id?.toString?.() ?? undefined,
+        createDate: updated.createDate ? new Date(updated.createDate).toISOString() : undefined,
+        editDate: updated.editDate ? new Date(updated.editDate).toISOString() : undefined,
+    };
+}
