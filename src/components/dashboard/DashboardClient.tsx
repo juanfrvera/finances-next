@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
-import EditItemDialog from "./EditItemDialog";
+import ItemDialog from "./ItemDialog";
 import { Card } from "@/components/ui/card";
 import { PieChart as PieChartIcon } from "lucide-react";
 import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
@@ -71,7 +71,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
 
     return (
         <div>
-            <EditItemDialog
+            <ItemDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}
                 item={selectedItem}
