@@ -79,8 +79,34 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
-                    {/* Close button */}
+                    {/* Action buttons positioned absolutely */}
                     <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+                        {/* More actions dropdown */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={deleting}
+                                >
+                                    <MoreVertical className="h-4 w-4" />
+                                    <span className="sr-only">More options</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    onSelect={handleDelete}
+                                    disabled={deleting}
+                                    className="text-destructive focus:text-destructive"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                                    <span>{deleting ? "Deleting..." : "Delete item"}</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        {/* Close button */}
                         <Button
                             variant="ghost"
                             size="icon"
@@ -186,7 +212,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
                                 disabled={deleting}
                                 className="text-destructive focus:text-destructive flex items-center gap-2"
                             >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4 text-destructive" />
                                 {deleting ? "Deleting..." : "Delete item"}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
