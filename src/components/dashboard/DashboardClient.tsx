@@ -35,7 +35,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
-    const [showJson, setShowJson] = useState(true); // NEW: toggle for JSON.stringify
+    const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
 
     function handleItemCreated(newItem: any) {
