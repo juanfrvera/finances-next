@@ -18,11 +18,11 @@ type AccountAction = 'updateBalance' | 'doTransaction' | 'editInfo' | null;
 function ActionBox({ label, description, onClick }: { label: string, description: string, onClick: () => void }) {
     return (
         <div 
-            className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+            className="p-4 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors"
             onClick={onClick}
         >
-            <h3 className="font-medium text-gray-900">{label}</h3>
-            <p className="text-sm text-gray-600 mt-1">{description}</p>
+            <h3 className="font-medium text-foreground">{label}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </div>
     );
 }

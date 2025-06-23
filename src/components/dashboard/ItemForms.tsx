@@ -72,14 +72,14 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
                     </button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
+                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
             </div>
@@ -140,14 +140,14 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
                     </button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
+                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
             </div>
@@ -224,14 +224,14 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
                     </button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
+                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
             </div>
@@ -267,14 +267,14 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-white rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
                     </button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-gray-200 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-red-500 text-white rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
+                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
                     {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
                 </button>}
             </div>
