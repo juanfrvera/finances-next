@@ -122,8 +122,8 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                     <defs>
                         <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
-                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="0%" stopColor={`var(--primary)`} stopOpacity={0.9} />
+                            <stop offset="100%" stopColor={`var(--primary)`} stopOpacity={0.4} />
                         </linearGradient>
                     </defs>
                     <XAxis
@@ -139,6 +139,14 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                         axisLine={{ stroke: 'hsl(var(--border))' }}
                         tickLine={{ stroke: 'hsl(var(--border))' }}
                         domain={['dataMin - 100', 'dataMax + 100']}
+                        tickFormatter={(value) => {
+                            // Round to nearest 10 for clean display, no decimals
+                            const rounded = Math.round(value / 10) * 10;
+                            return new Intl.NumberFormat('en-US', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                            }).format(rounded);
+                        }}
                     />
                     <Tooltip
                         formatter={(value: number) => [formatMoney(value), 'Balance']}
@@ -154,7 +162,7 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                     <Bar
                         dataKey="balance"
                         fill="url(#barGradient)"
-                        stroke="hsl(var(--primary))"
+                        stroke={`oklch(var(--primary))`}
                         strokeWidth={1}
                         radius={[4, 4, 0, 0]}
                     />
