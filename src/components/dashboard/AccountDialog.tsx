@@ -5,7 +5,7 @@ import TransactionsList from "./TransactionsList";
 import { useState, useEffect } from "react";
 import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, X, Trash2, ArrowLeft } from "lucide-react";
+import { MoreVertical, X, Trash2, ArrowLeft, Plus } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -217,7 +217,6 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
             form = <TransactionsList 
                 itemId={item._id} 
                 currency={item.currency || ''} 
-                onAddTransaction={() => setSelectedAction('addTransaction')}
                 onRefresh={() => {
                     // Refresh account data if needed
                 }}
@@ -240,60 +239,78 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
             <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
                 {/* Action buttons positioned absolutely */}
                 <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
-                    {/* More actions dropdown */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    {selectedAction !== 'transactions' && (
+                        <>
+                            {/* More actions dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        disabled={deleting}
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                        <span className="sr-only">More options</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        onSelect={handleDelete}
+                                        disabled={deleting}
+                                        className="text-destructive focus:text-destructive flex items-center gap-2"
+                                    >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        {deleting ? "Deleting..." : "Delete item"}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            
+                            {/* Close button */}
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                disabled={deleting}
+                                onClick={() => onOpenChange(false)}
                             >
-                                <MoreVertical className="h-4 w-4" />
-                                <span className="sr-only">More options</span>
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Close</span>
                             </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onSelect={handleDelete}
-                                disabled={deleting}
-                                className="text-destructive focus:text-destructive flex items-center gap-2"
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                {deleting ? "Deleting..." : "Delete item"}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    
-                    {/* Close button */}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => onOpenChange(false)}
-                    >
-                        <X className="h-4 w-4" />
-                        <span className="sr-only">Close</span>
-                    </Button>
+                        </>
+                    )}
                 </div>
 
                 {/* Standard dialog header */}
-                <DialogHeader className="pr-20">
-                    <div className="flex items-center gap-2 min-h-[2.5rem] w-full">
-                        <button
-                            className="cursor-pointer p-1 rounded hover:bg-gray-100 flex items-center justify-center"
-                            onClick={resetToSelection}
-                            aria-label="Back"
-                            type="button"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div className="flex-1">
-                            <DialogTitle>{dialogTitle}</DialogTitle>
-                            <DialogDescription>
-                                {dialogDescription}
-                            </DialogDescription>
+                <DialogHeader className="pr-4">
+                    <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2 min-h-[2.5rem]">
+                            {selectedAction && (
+                                <button
+                                    className="cursor-pointer p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"
+                                    onClick={resetToSelection}
+                                    aria-label="Back"
+                                    type="button"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                            )}
+                            <div>
+                                <DialogTitle>{dialogTitle}</DialogTitle>
+                                <DialogDescription>
+                                    {dialogDescription}
+                                </DialogDescription>
+                            </div>
                         </div>
+                        {selectedAction === 'transactions' && (
+                            <Button
+                                onClick={() => setSelectedAction('addTransaction')}
+                                size="sm"
+                                className="flex items-center gap-2 ml-4"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Add Transaction
+                            </Button>
+                        )}
                     </div>
                 </DialogHeader>
                 

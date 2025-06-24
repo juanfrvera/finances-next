@@ -48,7 +48,7 @@ export default function TransactionsList({
 }: { 
     itemId: string; 
     currency: string; 
-    onAddTransaction: () => void;
+    onAddTransaction?: () => void;
     onRefresh?: () => void;
 }) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -109,18 +109,6 @@ export default function TransactionsList({
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Transactions</h3>
-                <Button
-                    onClick={onAddTransaction}
-                    size="sm"
-                    className="flex items-center gap-2"
-                >
-                    <Plus className="h-4 w-4" />
-                    Add Transaction
-                </Button>
-            </div>
-
             {transactions.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                     <p>No transactions yet.</p>
