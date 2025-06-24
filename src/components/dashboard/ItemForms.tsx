@@ -368,3 +368,73 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
         </form>
     );
 }
+
+export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
+    initial?: { currency: string };
+    loading: boolean;
+    onSubmit: (data: { amount: number; motive?: string }) => void;
+    onCancel?: () => void;
+}) {
+    const [form, setForm] = useState({
+        amount: '',
+        motive: '',
+    });
+    
+    const isValid = form.amount && !isNaN(Number(form.amount)) && Number(form.amount) !== 0;
+    
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!isValid) return;
+        onSubmit({
+            amount: Number(form.amount),
+            motive: form.motive || undefined,
+        });
+    }
+    
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="space-y-2">
+                <div>
+                    <Label htmlFor="amount">Amount ({initial?.currency || ''})</Label>
+                    <Input
+                        id="amount"
+                        type="number"
+                        step="0.01"
+                        value={form.amount}
+                        onChange={(e) => setForm(prev => ({ ...prev, amount: e.target.value }))}
+                        placeholder="Enter amount (+ for deposit, - for withdrawal)"
+                        autoFocus
+                        required
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Use positive numbers for deposits, negative for withdrawals
+                    </p>
+                </div>
+                <div>
+                    <Label htmlFor="motive">Description (optional)</Label>
+                    <Input
+                        id="motive"
+                        type="text"
+                        value={form.motive}
+                        onChange={(e) => setForm(prev => ({ ...prev, motive: e.target.value }))}
+                        placeholder="e.g., Salary, Rent payment, Grocery shopping"
+                    />
+                </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+                <button 
+                    type="submit" 
+                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" 
+                    disabled={!isValid || loading}
+                >
+                    {loading && <Spinner />} {loading ? "Adding..." : "Add Transaction"}
+                </button>
+                {onCancel && (
+                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>
+                        Cancel
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}

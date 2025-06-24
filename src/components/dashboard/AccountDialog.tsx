@@ -1,8 +1,9 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AccountForm, UpdateBalanceForm } from "./ItemForms";
+import { AccountForm, UpdateBalanceForm, TransactionForm } from "./ItemForms";
+import TransactionsList from "./TransactionsList";
 import { useState, useEffect } from "react";
-import { updateItemToDb, deleteItemFromDb, updateAccountBalance } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { MoreVertical, X, Trash2, ArrowLeft } from "lucide-react";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
-type AccountAction = 'updateBalance' | 'doTransaction' | 'editInfo' | null;
+type AccountAction = 'updateBalance' | 'transactions' | 'editInfo' | 'addTransaction' | null;
 
 function ActionBox({ label, description, onClick }: { label: string, description: string, onClick: () => void }) {
     return (
@@ -72,6 +73,32 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         } finally {
             setLoading(false);
             onOpenChange(false);
+        }
+    }
+
+    async function handleCreateTransaction(data: { amount: number; motive?: string }) {
+        setLoading(true);
+        const toastId = showToast.loading('Adding transaction...');
+        try {
+            const transaction = await createTransaction(item._id, data.amount, data.motive);
+            
+            // Refresh account data by fetching updated account
+            // The server action already updated the balance
+            const newBalance = (item.balance || 0) + data.amount;
+            const updated = { ...item, balance: newBalance };
+            onItemUpdated(updated);
+            
+            // Refresh transactions list
+            if ((window as any).__refreshTransactions) {
+                (window as any).__refreshTransactions();
+            }
+            
+            showToast.update(toastId, 'Transaction added successfully!', 'success');
+            setSelectedAction('transactions'); // Go back to transactions list
+        } catch (error) {
+            showToast.update(toastId, 'Failed to add transaction', 'error');
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -158,9 +185,9 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                             onClick={() => setSelectedAction('updateBalance')} 
                         />
                         <ActionBox 
-                            label="Do transaction" 
-                            description="Record a new transaction for this account." 
-                            onClick={() => setSelectedAction('doTransaction')} 
+                            label="Transactions" 
+                            description="View and manage account transactions." 
+                            onClick={() => setSelectedAction('transactions')} 
                         />
                         <ActionBox 
                             label="Edit information" 
@@ -184,11 +211,22 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
             dialogDescription = "Update the current balance of the account.";
             form = <UpdateBalanceForm initial={item} loading={loading} onSubmit={handleUpdateBalance} onCancel={handleCancel} />;
             break;
-        case 'doTransaction':
-            dialogTitle = "New Transaction";
+        case 'transactions':
+            dialogTitle = "Transactions";
+            dialogDescription = "View and manage account transactions.";
+            form = <TransactionsList 
+                itemId={item._id} 
+                currency={item.currency || ''} 
+                onAddTransaction={() => setSelectedAction('addTransaction')}
+                onRefresh={() => {
+                    // Refresh account data if needed
+                }}
+            />;
+            break;
+        case 'addTransaction':
+            dialogTitle = "Add Transaction";
             dialogDescription = "Record a new transaction for this account.";
-            // TODO: Create TransactionForm
-            form = <div className="p-4 text-center text-gray-500">Transaction Form - Coming Soon</div>;
+            form = <TransactionForm initial={item} loading={loading} onSubmit={handleCreateTransaction} onCancel={() => setSelectedAction('transactions')} />;
             break;
         case 'editInfo':
             dialogTitle = "Edit Account";
