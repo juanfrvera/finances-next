@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AccountForm, UpdateBalanceForm, TransactionForm } from "./ItemForms";
 import TransactionsList from "./TransactionsList";
 import { useState, useEffect } from "react";
-import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction, getTransactions } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { MoreVertical, X, Trash2, ArrowLeft, Plus } from "lucide-react";
 import {
@@ -13,17 +13,153 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 type AccountAction = 'updateBalance' | 'transactions' | 'editInfo' | 'addTransaction' | null;
 
+// Format money helper
+function formatMoney(amount: number) {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+}
+
 function ActionBox({ label, description, onClick }: { label: string, description: string, onClick: () => void }) {
     return (
-        <div 
-            className="p-4 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+        <div
+            className="p-3 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors"
             onClick={onClick}
         >
-            <h3 className="font-medium text-foreground">{label}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+            <h3 className="font-medium text-foreground text-sm">{label}</h3>
+            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        </div>
+    );
+}
+
+function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalance: number }) {
+    const [chartData, setChartData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadChartData() {
+            try {
+                const transactions = await getTransactions(itemId);
+
+                if (transactions.length === 0) {
+                    // If no transactions, just show current balance
+                    setChartData([{
+                        date: 'Current',
+                        balance: Math.round(currentBalance * 100) / 100,
+                    }]);
+                    return;
+                }
+
+                // Start with current balance and work backwards
+                let runningBalance = Math.round(currentBalance * 100) / 100;
+                const balanceData: any[] = [];
+
+                // Add current balance as the last point
+                balanceData.unshift({
+                    date: 'Current',
+                    balance: runningBalance,
+                });
+
+                // Sort transactions by date (newest first) and work backwards
+                const sortedTransactions = [...transactions];
+
+                // Work backwards through transactions to calculate historical balances
+                sortedTransactions.forEach((transaction, index) => {
+                    const transactionAmount = (transaction as any).amount || 0;
+                    const transactionDate = (transaction as any).date || new Date().toISOString();
+
+                    // Subtract this transaction to get the balance before it
+                    runningBalance -= transactionAmount;
+
+                    // Round to 2 decimal places to avoid floating point precision issues
+                    runningBalance = Math.round(runningBalance * 100) / 100;
+
+                    balanceData.unshift({
+                        date: new Date(transactionDate).toLocaleDateString(),
+                        balance: runningBalance,
+                    });
+                });
+
+                // Limit to last 10 data points for readability
+                setChartData(balanceData.slice(-10));
+            } catch (error) {
+                console.error('Failed to load chart data:', error);
+                setChartData([]);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (itemId) {
+            loadChartData();
+        }
+    }, [itemId, currentBalance]);
+
+    if (loading) {
+        return (
+            <div className="h-48 flex items-center justify-center">
+                <div className="text-sm text-muted-foreground">Loading chart...</div>
+            </div>
+        );
+    }
+
+    if (chartData.length === 0) {
+        return (
+            <div className="h-48 flex items-center justify-center">
+                <div className="text-sm text-muted-foreground">No transaction history</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-48 bg-card rounded-lg border p-4">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                    <defs>
+                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        </linearGradient>
+                    </defs>
+                    <XAxis
+                        dataKey="date"
+                        fontSize={11}
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis
+                        fontSize={11}
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                        domain={['dataMin - 100', 'dataMax + 100']}
+                    />
+                    <Tooltip
+                        formatter={(value: number) => [formatMoney(value), 'Balance']}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        contentStyle={{
+                            backgroundColor: 'hsl(var(--popover))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            color: 'hsl(var(--popover-foreground))',
+                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        }}
+                    />
+                    <Bar
+                        dataKey="balance"
+                        fill="url(#barGradient)"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={1}
+                        radius={[4, 4, 0, 0]}
+                    />
+                </BarChart>
+            </ResponsiveContainer>
         </div>
     );
 }
@@ -80,19 +216,18 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         setLoading(true);
         const toastId = showToast.loading('Adding transaction...');
         try {
-            const transaction = await createTransaction(item._id, data.amount, data.motive);
-            
-            // Refresh account data by fetching updated account
-            // The server action already updated the balance
-            const newBalance = (item.balance || 0) + data.amount;
+            await createTransaction(item._id, data.amount, data.motive);
+
+            // Calculate the new balance with proper rounding
+            const newBalance = Math.round(((item.balance || 0) + data.amount) * 100) / 100;
             const updated = { ...item, balance: newBalance };
             onItemUpdated(updated);
-            
+
             // Refresh transactions list
             if ((window as any).__refreshTransactions) {
                 (window as any).__refreshTransactions();
             }
-            
+
             showToast.update(toastId, 'Transaction added successfully!', 'success');
             setSelectedAction('transactions'); // Go back to transactions list
         } catch (error) {
@@ -158,7 +293,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        
+
                         {/* Close button */}
                         <Button
                             variant="ghost"
@@ -172,28 +307,53 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                     </div>
 
                     <DialogHeader className="pr-20">
-                        <DialogTitle>Account Actions</DialogTitle>
+                        <DialogTitle>Account Overview</DialogTitle>
                         <DialogDescription>
-                            Choose what you want to do with this account.
+                            {item.name} - Manage your account balance and transactions.
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                        <ActionBox 
-                            label="Update balance" 
-                            description="Update the current balance of the account." 
-                            onClick={() => setSelectedAction('updateBalance')} 
-                        />
-                        <ActionBox 
-                            label="Transactions" 
-                            description="View and manage account transactions." 
-                            onClick={() => setSelectedAction('transactions')} 
-                        />
-                        <ActionBox 
-                            label="Edit information" 
-                            description="Edit the account name and other details." 
-                            onClick={() => setSelectedAction('editInfo')} 
-                        />
+
+                    {/* Main content area with balance and actions */}
+                    <div className="grid grid-cols-3 gap-6">
+                        {/* Left side - Balance display */}
+                        <div className="col-span-1 flex flex-col items-center justify-center p-6 bg-accent/50 rounded-lg">
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-foreground mb-1">
+                                    {formatMoney(item.balance || 0)}
+                                </div>
+                                <div className="text-sm text-muted-foreground uppercase tracking-wider">
+                                    {item.currency || 'USD'}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    Current Balance
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right side - Action buttons */}
+                        <div className="col-span-2 grid grid-cols-1 gap-3">
+                            <ActionBox
+                                label="Update balance"
+                                description="Update the current balance of the account."
+                                onClick={() => setSelectedAction('updateBalance')}
+                            />
+                            <ActionBox
+                                label="Transactions"
+                                description="View and manage account transactions."
+                                onClick={() => setSelectedAction('transactions')}
+                            />
+                            <ActionBox
+                                label="Edit information"
+                                description="Edit the account name and other details."
+                                onClick={() => setSelectedAction('editInfo')}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Balance chart */}
+                    <div className="mt-6">
+                        <h3 className="text-sm font-medium text-foreground mb-3">Balance History</h3>
+                        <BalanceChart itemId={item._id} currentBalance={item.balance || 0} />
                     </div>
                 </DialogContent>
             </Dialog>
@@ -214,9 +374,9 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         case 'transactions':
             dialogTitle = "Transactions";
             dialogDescription = "View and manage account transactions.";
-            form = <TransactionsList 
-                itemId={item._id} 
-                currency={item.currency || ''} 
+            form = <TransactionsList
+                itemId={item._id}
+                currency={item.currency || ''}
                 onRefresh={() => {
                     // Refresh account data if needed
                 }}
@@ -265,7 +425,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            
+
                             {/* Close button */}
                             <Button
                                 variant="ghost"
@@ -313,7 +473,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                         )}
                     </div>
                 </DialogHeader>
-                
+
                 {form}
             </DialogContent>
         </Dialog>
