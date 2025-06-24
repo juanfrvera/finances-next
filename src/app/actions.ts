@@ -52,22 +52,38 @@ export async function updateAccountBalance(itemId: string, newBalance: number, m
     const db = await getDb();
     const _id = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
     const editDate = new Date().toISOString();
-    
+
+    // Get the current account to calculate the difference
+    const currentAccount = await db.collection("items").findOne({ _id });
+    if (!currentAccount) throw new Error("Account not found");
+
+    const currentBalance = currentAccount.balance || 0;
+    const difference = newBalance - currentBalance;
+
+    // Create a transaction record if there's a difference
+    if (difference !== 0) {
+        await db.collection("transactions").insertOne({
+            itemId: _id,
+            amount: difference,
+            motive: motive || "balance update",
+            date: editDate,
+        });
+    }
+
     // Update the balance and editDate
-    // TODO: In the future, create a transaction record with motive, balance, and current date
     await db.collection("items").updateOne(
-        { _id }, 
-        { 
-            $set: { 
-                balance: newBalance, 
+        { _id },
+        {
+            $set: {
+                balance: newBalance,
                 editDate
-            } 
+            }
         }
     );
-    
+
     const updated = await db.collection("items").findOne({ _id });
     if (!updated) return null;
-    
+
     return {
         ...updated,
         _id: updated._id?.toString?.() ?? undefined,
@@ -81,9 +97,9 @@ export async function createTransaction(itemId: string, amount: number, motive?:
     if (!itemId) throw new Error("Missing itemId for transaction");
     const db = await getDb();
     const now = new Date().toISOString();
-    
+
     const itemObjectId = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
-    
+
     // Insert the transaction
     const result = await db.collection("transactions").insertOne({
         itemId: itemObjectId,
@@ -91,27 +107,27 @@ export async function createTransaction(itemId: string, amount: number, motive?:
         motive: motive || null,
         date: now,
     });
-    
+
     // Update the account balance
     const account = await db.collection("items").findOne({ _id: itemObjectId });
     if (!account) throw new Error("Account not found");
-    
+
     const newBalance = (account.balance || 0) + amount;
-    
+
     // Update account balance and editDate
     await db.collection("items").updateOne(
         { _id: itemObjectId },
-        { 
-            $set: { 
+        {
+            $set: {
                 balance: newBalance,
                 editDate: now
             }
         }
     );
-    
+
     const inserted = await db.collection("transactions").findOne({ _id: result.insertedId });
     if (!inserted) return null;
-    
+
     return {
         ...inserted,
         _id: inserted._id?.toString?.() ?? undefined,
@@ -124,12 +140,12 @@ export async function getTransactions(itemId: string) {
     if (!itemId) throw new Error("Missing itemId for transactions");
     const db = await getDb();
     const _id = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
-    
+
     const transactions = await db.collection("transactions")
         .find({ itemId: _id })
         .sort({ date: -1 }) // Newest first
         .toArray();
-    
+
     return transactions.map(transaction => ({
         ...transaction,
         _id: transaction._id?.toString?.() ?? undefined,
@@ -142,30 +158,30 @@ export async function deleteTransaction(transactionId: string) {
     if (!transactionId) throw new Error("Missing transactionId for deletion");
     const db = await getDb();
     const _id = typeof transactionId === "string" ? ObjectId.createFromHexString(transactionId) : transactionId;
-    
+
     // Get the transaction to reverse its amount
     const transaction = await db.collection("transactions").findOne({ _id });
     if (!transaction) throw new Error("Transaction not found");
-    
+
     // Delete the transaction
     await db.collection("transactions").deleteOne({ _id });
-    
+
     // Update account balance by reversing the transaction
     const account = await db.collection("items").findOne({ _id: transaction.itemId });
     if (!account) throw new Error("Account not found");
-    
+
     const newBalance = (account.balance || 0) - transaction.amount;
     const editDate = new Date().toISOString();
-    
+
     await db.collection("items").updateOne(
         { _id: transaction.itemId },
-        { 
-            $set: { 
+        {
+            $set: {
                 balance: newBalance,
                 editDate
             }
         }
     );
-    
+
     return true;
 }

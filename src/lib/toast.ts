@@ -4,23 +4,23 @@ export const showToast = {
   loading: (message: string, options?: { id?: string }) => {
     return toast.loading(message, options);
   },
-  
+
   success: (message: string, options?: { id?: string }) => {
     return toast.success(message, options);
   },
-  
+
   error: (message: string, options?: { id?: string }) => {
     return toast.error(message, options);
   },
-  
+
   info: (message: string, options?: { id?: string }) => {
     return toast.info(message, options);
   },
-  
+
   dismiss: (toastId?: string | number) => {
     toast.dismiss(toastId);
   },
-  
+
   // Helper for updating an existing toast
   update: (toastId: string | number, message: string, type: 'success' | 'error' | 'info') => {
     switch (type) {
