@@ -1,0 +1,166 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda warming infrastructure for cold start mitigation'
+
+Parameters:
+  LambdaFunctionName:
+    Type: String
+    Description: Name of the Lambda function to keep warm
+  
+  WarmingSchedule:
+    Type: String
+    Description: CloudWatch Events schedule expression
+    Default: "rate(5 minutes)"
+    AllowedValues:
+      - "rate(1 minute)"
+      - "rate(5 minutes)"
+      - "rate(10 minutes)"
+      - "rate(15 minutes)"
+  
+  ProvisionedConcurrency:
+    Type: Number
+    Description: Number of provisioned concurrent executions (0 to disable)
+    Default: 0
+    MinValue: 0
+    MaxValue: 10
+
+Conditions:
+  EnableProvisionedConcurrency: !Not [!Equals [!Ref ProvisionedConcurrency, 0]]
+
+Resources:
+  # CloudWatch Events Rule for Lambda warming
+  LambdaWarmingRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${LambdaFunctionName}-warmer
+      Description: !Sub Keep ${LambdaFunctionName} Lambda warm
+      ScheduleExpression: !Ref WarmingSchedule
+      State: ENABLED
+      Targets:
+        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}
+          Id: LambdaWarmingTarget
+          Input: |
+            {
+              "source": "aws.events",
+              "detail-type": "Lambda Warmer",
+              "detail": {
+                "warmer": true,
+                "timestamp": "scheduled"
+              }
+            }
+
+  # Permission for CloudWatch Events to invoke Lambda
+  LambdaWarmingPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LambdaWarmingRule.Arn
+
+  # Provisioned Concurrency Configuration (optional)
+  ProvisionedConcurrencyConfig:
+    Type: AWS::Lambda::ProvisionedConcurrencyConfig
+    Condition: EnableProvisionedConcurrency
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Qualifier: $LATEST
+      ProvisionedConcurrency: !Ref ProvisionedConcurrency
+
+  # CloudWatch Alarms for monitoring
+  ColdStartAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${LambdaFunctionName}-cold-starts
+      AlarmDescription: Monitor cold starts for Lambda function
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000  # 3 seconds
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      TreatMissingData: notBreaching
+
+  ErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${LambdaFunctionName}-error-rate
+      AlarmDescription: Monitor error rate for Lambda function
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      TreatMissingData: notBreaching
+
+  # CloudWatch Dashboard for Lambda metrics
+  LambdaDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${LambdaFunctionName}-metrics
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunctionName}" ],
+                  [ ".", "Invocations", ".", "." ],
+                  [ ".", "Errors", ".", "." ]
+                ],
+                "period": 300,
+                "stat": "Average",
+                "region": "${AWS::Region}",
+                "title": "Lambda Performance Metrics"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "ConcurrentExecutions", "FunctionName", "${LambdaFunctionName}" ]
+                ],
+                "period": 300,
+                "stat": "Maximum",
+                "region": "${AWS::Region}",
+                "title": "Concurrent Executions"
+              }
+            }
+          ]
+        }
+
+Outputs:
+  WarmingRuleArn:
+    Description: ARN of the CloudWatch Events rule for warming
+    Value: !GetAtt LambdaWarmingRule.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-WarmingRuleArn
+  
+  DashboardURL:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${LambdaFunctionName}-metrics
+    Export:
+      Name: !Sub ${AWS::StackName}-DashboardURL
+  
+  ProvisionedConcurrencyEnabled:
+    Description: Whether provisioned concurrency is enabled
+    Value: !If [EnableProvisionedConcurrency, 'true', 'false']
+    Export:
+      Name: !Sub ${AWS::StackName}-ProvisionedConcurrencyEnabled
