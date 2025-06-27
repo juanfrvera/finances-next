@@ -47,7 +47,7 @@ export async function deleteItemFromDb(id: string) {
     return true;
 }
 
-export async function updateAccountBalance(itemId: string, newBalance: number, motive?: string) {
+export async function updateAccountBalance(itemId: string, newBalance: number, note?: string) {
     if (!itemId) throw new Error("Missing itemId for balance update");
     const db = await getDb();
     const _id = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
@@ -63,9 +63,9 @@ export async function updateAccountBalance(itemId: string, newBalance: number, m
     // Create a transaction record if there's a difference
     if (difference !== 0) {
         await db.collection("transactions").insertOne({
-            itemId: _id,
+            itemId: itemId, // Store as string instead of ObjectId
             amount: difference,
-            motive: motive || "balance update",
+            note: note || "balance update",
             date: editDate,
         });
     }
@@ -93,7 +93,7 @@ export async function updateAccountBalance(itemId: string, newBalance: number, m
 }
 
 // Transaction-related actions
-export async function createTransaction(itemId: string, amount: number, motive?: string) {
+export async function createTransaction(itemId: string, amount: number, note?: string) {
     if (!itemId) throw new Error("Missing itemId for transaction");
     const db = await getDb();
     const now = new Date().toISOString();
@@ -102,9 +102,9 @@ export async function createTransaction(itemId: string, amount: number, motive?:
 
     // Insert the transaction
     const result = await db.collection("transactions").insertOne({
-        itemId: itemObjectId,
+        itemId: itemId, // Store as string instead of ObjectId
         amount,
-        motive: motive || null,
+        note: note || null,
         date: now,
     });
 
@@ -139,10 +139,9 @@ export async function createTransaction(itemId: string, amount: number, motive?:
 export async function getTransactions(itemId: string) {
     if (!itemId) throw new Error("Missing itemId for transactions");
     const db = await getDb();
-    const _id = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
 
     const transactions = await db.collection("transactions")
-        .find({ itemId: _id })
+        .find({ itemId: itemId }) // Query by string itemId instead of ObjectId
         .sort({ date: -1 }) // Newest first
         .toArray();
 

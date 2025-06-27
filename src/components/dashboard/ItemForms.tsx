@@ -285,35 +285,35 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
 export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
     initial?: { name: string; balance: number; currency: string };
     loading: boolean;
-    onSubmit: (data: { newBalance: number; motive?: string }) => void;
+    onSubmit: (data: { newBalance: number; note?: string }) => void;
     onCancel?: () => void;
 }) {
     const [form, setForm] = useState({
         newBalance: initial?.balance?.toString() || '',
-        motive: '',
+        note: '',
     });
-    
+
     const isValid = form.newBalance && !isNaN(Number(form.newBalance));
     const hasChanged = form.newBalance !== (initial?.balance?.toString() || '');
-    
+
     useEffect(() => {
         if (initial) {
             setForm({
                 newBalance: initial.balance?.toString() || '',
-                motive: '',
+                note: '',
             });
         }
     }, [initial]);
-    
+
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!isValid) return;
         onSubmit({
             newBalance: Number(form.newBalance),
-            motive: form.motive || undefined,
+            note: form.note || undefined,
         });
     }
-    
+
     return (
         <form onSubmit={handleSubmit}>
             <div className="space-y-2">
@@ -341,20 +341,20 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
                     />
                 </div>
                 <div>
-                    <Label htmlFor="motive">Reason for change (optional)</Label>
+                    <Label htmlFor="note">Reason for change (optional)</Label>
                     <Input
-                        id="motive"
+                        id="note"
                         type="text"
-                        value={form.motive}
-                        onChange={(e) => setForm(prev => ({ ...prev, motive: e.target.value }))}
+                        value={form.note}
+                        onChange={(e) => setForm(prev => ({ ...prev, note: e.target.value }))}
                         placeholder="e.g., Bank transfer, Cash deposit, Error correction"
                     />
                 </div>
             </div>
             <div className="flex gap-2 mt-4">
-                <button 
-                    type="submit" 
-                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" 
+                <button
+                    type="submit"
+                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2"
                     disabled={!isValid || !hasChanged || loading}
                 >
                     {loading && <Spinner />} {loading ? "Updating..." : "Update Balance"}
@@ -372,25 +372,25 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
 export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
     initial?: { currency: string };
     loading: boolean;
-    onSubmit: (data: { amount: number; motive?: string }) => void;
+    onSubmit: (data: { amount: number; note?: string }) => void;
     onCancel?: () => void;
 }) {
     const [form, setForm] = useState({
         amount: '',
-        motive: '',
+        note: '',
     });
-    
+
     const isValid = form.amount && !isNaN(Number(form.amount)) && Number(form.amount) !== 0;
-    
+
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!isValid) return;
         onSubmit({
             amount: Number(form.amount),
-            motive: form.motive || undefined,
+            note: form.note || undefined,
         });
     }
-    
+
     return (
         <form onSubmit={handleSubmit}>
             <div className="space-y-2">
@@ -411,20 +411,20 @@ export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
                     </p>
                 </div>
                 <div>
-                    <Label htmlFor="motive">Description (optional)</Label>
+                    <Label htmlFor="note">Description (optional)</Label>
                     <Input
-                        id="motive"
+                        id="note"
                         type="text"
-                        value={form.motive}
-                        onChange={(e) => setForm(prev => ({ ...prev, motive: e.target.value }))}
+                        value={form.note}
+                        onChange={(e) => setForm(prev => ({ ...prev, note: e.target.value }))}
                         placeholder="e.g., Salary, Rent payment, Grocery shopping"
                     />
                 </div>
             </div>
             <div className="flex gap-2 mt-4">
-                <button 
-                    type="submit" 
-                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" 
+                <button
+                    type="submit"
+                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2"
                     disabled={!isValid || loading}
                 >
                     {loading && <Spinner />} {loading ? "Adding..." : "Add Transaction"}

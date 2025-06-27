@@ -205,11 +205,11 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         }
     }
 
-    async function handleUpdateBalance(data: { newBalance: number; motive?: string }) {
+    async function handleUpdateBalance(data: { newBalance: number; note?: string }) {
         setLoading(true);
         const toastId = showToast.loading('Updating balance...');
         try {
-            const updated = await updateAccountBalance(item._id, data.newBalance, data.motive);
+            const updated = await updateAccountBalance(item._id, data.newBalance, data.note);
             onItemUpdated(updated);
             showToast.update(toastId, 'Balance updated successfully!', 'success');
         } catch (error) {
@@ -220,11 +220,11 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         }
     }
 
-    async function handleCreateTransaction(data: { amount: number; motive?: string }) {
+    async function handleCreateTransaction(data: { amount: number; note?: string }) {
         setLoading(true);
         const toastId = showToast.loading('Adding transaction...');
         try {
-            await createTransaction(item._id, data.amount, data.motive);
+            await createTransaction(item._id, data.amount, data.note);
 
             // Calculate the new balance with proper rounding
             const newBalance = Math.round(((item.balance || 0) + data.amount) * 100) / 100;
