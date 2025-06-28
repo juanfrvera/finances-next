@@ -18,11 +18,13 @@ export default async function Dashboard() {
     if (item.type === "currency") {
       const accounts = accountItems.filter((acc) => acc.currency === item.currency);
       const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
-      const accountBreakdown = accounts.map(acc => ({
-        id: acc._id,
-        name: acc.name,
-        balance: Number(acc.balance),
-      }));
+      const accountBreakdown = accounts
+        .map(acc => ({
+          id: acc._id,
+          name: acc.name,
+          balance: Number(acc.balance),
+        }))
+        .sort((a, b) => b.balance - a.balance); // Sort by balance descending (highest first)
       return { ...item, value: sum, accountBreakdown };
     }
     return item;
