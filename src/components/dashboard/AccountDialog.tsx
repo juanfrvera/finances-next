@@ -194,16 +194,16 @@ function DeleteConfirmationDialog({
                         <Trash2 className="h-5 w-5" />
                         Are you sure?
                     </DialogTitle>
-                    <DialogDescription className="text-left space-y-2">
-                        <div>
-                            You are about to delete <strong>{accountName}</strong> forever, 
-                            along with all the transactions ever done in this account.
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                            This action cannot be undone. All data will be permanently removed from our servers.
-                        </div>
-                    </DialogDescription>
                 </DialogHeader>
+                <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        You are about to delete <strong className="text-foreground">{accountName}</strong> forever, 
+                        along with all the transactions ever done in this account.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        This action cannot be undone. All data will be permanently removed from our servers.
+                    </p>
+                </div>
                 <div className="flex justify-end gap-2 mt-6">
                     <Button 
                         variant="outline" 
@@ -302,13 +302,13 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
 
     async function handleDelete() {
         setDeleting(true);
-        const toastId = showToast.loading(toastMessages.deleting);
+        const toastId = showToast.loading("Deleting account...");
         try {
             await deleteItemFromDb(item._id);
             onItemDeleted(item._id);
-            showToast.update(toastId, toastMessages.deleted, 'success');
+            showToast.update(toastId, "Account deleted successfully", 'success');
         } catch (error) {
-            showToast.update(toastId, toastMessages.deleteError, 'error');
+            showToast.update(toastId, "Failed to delete account", 'error');
         } finally {
             setDeleting(false);
             setShowDeleteConfirmation(false);
