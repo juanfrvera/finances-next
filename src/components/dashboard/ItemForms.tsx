@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function Spinner() {
     return (
@@ -72,16 +73,18 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                    </button>
+                    </Button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
-                    {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
-                </button>}
+                {showDelete && onDelete && (
+                    <Button type="button" variant="destructive" className="flex-1" onClick={onDelete} disabled={deleting || loading}>
+                        {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                )}
             </div>
         </form>
     );
@@ -140,16 +143,18 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                    </button>
+                    </Button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
-                    {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
-                </button>}
+                {showDelete && onDelete && (
+                    <Button type="button" variant="destructive" className="flex-1" onClick={onDelete} disabled={deleting || loading}>
+                        {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                )}
             </div>
         </form>
     );
@@ -224,16 +229,18 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                    </button>
+                    </Button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
-                    {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
-                </button>}
+                {showDelete && onDelete && (
+                    <Button type="button" variant="destructive" className="flex-1" onClick={onDelete} disabled={deleting || loading}>
+                        {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                )}
             </div>
         </form>
     );
@@ -267,16 +274,18 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
-                    <button type="submit" className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2" disabled={!isValid || loading || deleting}>
+                    <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
                         {loading && <Spinner />} {loading ? "Saving..." : submitLabel}
-                    </button>
+                    </Button>
                 )}
                 {(isChanged || !initial) && onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>Cancel</button>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
                 )}
-                {showDelete && onDelete && <button type="button" className="bg-destructive text-destructive-foreground rounded p-2 flex-1 flex items-center justify-center gap-2" onClick={onDelete} disabled={deleting || loading}>
-                    {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
-                </button>}
+                {showDelete && onDelete && (
+                    <Button type="button" variant="destructive" className="flex-1" onClick={onDelete} disabled={deleting || loading}>
+                        {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                )}
             </div>
         </form>
     );
@@ -352,17 +361,17 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
                 </div>
             </div>
             <div className="flex gap-2 mt-4">
-                <button
+                <Button
                     type="submit"
-                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2"
+                    className="flex-1"
                     disabled={!isValid || !hasChanged || loading}
                 >
                     {loading && <Spinner />} {loading ? "Updating..." : "Update Balance"}
-                </button>
+                </Button>
                 {onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
                         Cancel
-                    </button>
+                    </Button>
                 )}
             </div>
         </form>
@@ -422,17 +431,17 @@ export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
                 </div>
             </div>
             <div className="flex gap-2 mt-4">
-                <button
+                <Button
                     type="submit"
-                    className="bg-primary text-primary-foreground rounded p-2 hover:bg-primary/90 cursor-pointer disabled:opacity-50 flex-1 flex items-center justify-center gap-2"
+                    className="flex-1"
                     disabled={!isValid || loading}
                 >
                     {loading && <Spinner />} {loading ? "Adding..." : "Add Transaction"}
-                </button>
+                </Button>
                 {onCancel && (
-                    <button type="button" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded p-2 flex-1" onClick={onCancel}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
                         Cancel
-                    </button>
+                    </Button>
                 )}
             </div>
         </form>
