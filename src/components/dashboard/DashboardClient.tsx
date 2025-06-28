@@ -38,14 +38,63 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
 
+    // Helper function to recalculate currency values based on account items
+    function recalculateCurrencyValues(items: any[]) {
+        const accountItems = items.filter((item) => item.type === "account");
+        
+        return items.map((item) => {
+            if (item.type === "currency") {
+                const accounts = accountItems.filter((acc) => acc.currency === item.currency);
+                const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+                const accountBreakdown = accounts.map(acc => ({
+                    id: acc._id,
+                    name: acc.name,
+                    balance: Number(acc.balance),
+                }));
+                return { ...item, value: sum, accountBreakdown };
+            }
+            return item;
+        });
+    }
+
     function handleItemCreated(newItem: any) {
-        setClientItems((prev) => [newItem, ...prev]);
+        setClientItems((prev) => {
+            const updatedItems = [newItem, ...prev];
+            
+            // If an account was created, recalculate currency values
+            if (newItem.type === 'account') {
+                return recalculateCurrencyValues(updatedItems);
+            }
+            
+            return updatedItems;
+        });
     }
     function handleItemUpdated(updated: any) {
-        setClientItems((prev) => prev.map(i => i._id === updated._id ? updated : i));
+        setClientItems((prev) => {
+            const updatedItems = prev.map(i => i._id === updated._id ? updated : i);
+            
+            // If an account was updated, recalculate currency values
+            if (updated.type === 'account') {
+                return recalculateCurrencyValues(updatedItems);
+            }
+            
+            return updatedItems;
+        });
     }
     function handleItemDeleted(id: string) {
-        setClientItems((prev) => prev.filter(i => i._id !== id));
+        setClientItems((prev) => {
+            const filteredItems = prev.filter(i => i._id !== id);
+            
+            // Find the deleted item to check if it was an account
+            const deletedItem = prev.find(i => i._id === id);
+            
+            if (deletedItem && deletedItem.type === 'account') {
+                // If an account was deleted, recalculate currency values
+                return recalculateCurrencyValues(filteredItems);
+            }
+            
+            return filteredItems;
+        });
         // Also remove from initial items if present
         // (If you want to support SSR fallback, you may want to filter from both)
     }
