@@ -279,24 +279,21 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
     
     // Only add today's data point if it's not already the last one
     if (!lastDataPoint || lastDataPoint.date !== today) {
-        // Calculate current total value and top 3 accounts with current balances
-        const accountEntries = Array.from(accountBalances.entries())
-            .map(([accountId, balance]) => {
-                const account = accounts.find(acc => acc._id.toString() === accountId);
-                return {
-                    name: account?.name || 'Unknown',
-                    balance: balance
-                };
-            })
+        // Use actual current balances from the database instead of calculated balances
+        const currentAccountEntries = accounts
+            .map(account => ({
+                name: account.name || 'Unknown',
+                balance: account.balance || 0
+            }))
             .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
             .slice(0, 3);
         
-        const totalValue = Array.from(accountBalances.values()).reduce((sum, balance) => sum + balance, 0);
+        const currentTotalValue = accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
         
         evolutionData.push({
             date: today,
-            value: Math.round(totalValue * 100) / 100, // Round to 2 decimals
-            topAccounts: accountEntries
+            value: Math.round(currentTotalValue * 100) / 100, // Round to 2 decimals
+            topAccounts: currentAccountEntries
         });
     }
     

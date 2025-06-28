@@ -363,7 +363,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
             )}
 
             {activeTab === 'bar' && breakdown.length > 0 && (
-                <div className="w-full flex-grow flex flex-col items-center mt-2">
+                <div className="w-full flex-grow flex flex-col items-center justify-center mt-2">
                     <CurrencyEvolutionChart currency={data.currency} />
                 </div>
             )}
