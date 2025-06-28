@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
@@ -40,6 +40,13 @@ type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item: any) => void }) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<ItemType>(null);
+
+    // Reset selectedType when dialog closes
+    useEffect(() => {
+        if (!open) {
+            setSelectedType(null);
+        }
+    }, [open]);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
