@@ -4,14 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import { showToast } from "@/lib/toast";
 import { getTransactions, deleteTransaction } from "@/app/actions";
-
-type Transaction = {
-    _id: string;
-    itemId: string;
-    amount: number;
-    motive?: string;
-    date: string;
-};
+import type { Transaction } from "@/lib/types";
 
 function formatDate(dateString: string) {
     const date = new Date(dateString);
@@ -137,9 +130,9 @@ export default function TransactionsList({
                                         {formatDate(transaction.date)}
                                     </span>
                                 </div>
-                                {transaction.motive && (
+                                {transaction.note && (
                                     <p className="text-sm text-muted-foreground mt-1">
-                                        {transaction.motive}
+                                        {transaction.note}
                                     </p>
                                 )}
                             </div>
