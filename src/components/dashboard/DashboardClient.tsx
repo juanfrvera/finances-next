@@ -4,14 +4,21 @@ import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart as PieChartIcon } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, List } from "lucide-react";
 import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
     ssr: false,
     loading: () => <div className="flex items-center justify-center h-32">Loading chart...</div>
+});
+
+// Dynamically import CurrencyEvolutionChart with SSR disabled
+const CurrencyEvolutionChart = dynamic(() => import("./CurrencyEvolutionChart"), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-32">Loading evolution chart...</div>
 });
 
 interface DashboardClientProps {
@@ -37,6 +44,9 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
+    
+    // TanStack Query mutations for cache invalidation
+    const { invalidateCurrency } = useCurrencyEvolutionMutations();
 
     // Helper function to recalculate currency values based on account items
     function recalculateCurrencyValues(items: any[]) {
@@ -63,6 +73,10 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             
             // If an account was created, recalculate currency values
             if (newItem.type === 'account') {
+                // Invalidate currency evolution cache for this specific currency
+                if (newItem.currency) {
+                    invalidateCurrency(newItem.currency);
+                }
                 return recalculateCurrencyValues(updatedItems);
             }
             
@@ -75,6 +89,10 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             
             // If an account was updated, recalculate currency values
             if (updated.type === 'account') {
+                // Invalidate currency evolution cache for this specific currency
+                if (updated.currency) {
+                    invalidateCurrency(updated.currency);
+                }
                 return recalculateCurrencyValues(updatedItems);
             }
             
@@ -89,6 +107,10 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             const deletedItem = prev.find(i => i._id === id);
             
             if (deletedItem && deletedItem.type === 'account') {
+                // Invalidate currency evolution cache for this specific currency
+                if (deletedItem.currency) {
+                    invalidateCurrency(deletedItem.currency);
+                }
                 // If an account was deleted, recalculate currency values
                 return recalculateCurrencyValues(filteredItems);
             }
@@ -240,27 +262,28 @@ interface CurrencyProps {
     onUpdateSize: (size: { width: number; height: number }) => void;
 }
 
+type CurrencyTab = 'simple' | 'pie' | 'bar';
+
 function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     const COLORS = [
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
     const breakdown = data.accountBreakdown || [];
-    const [showChart, setShowChart] = useState(true);
+    const [activeTab, setActiveTab] = useState<CurrencyTab>('simple');
 
-    // Update card size when chart visibility changes
-    const updateSize = () => {
-        const newShowChart = !showChart;
-        setShowChart(newShowChart);
+    // Update card size when tab changes
+    const updateSize = (newTab: CurrencyTab) => {
+        setActiveTab(newTab);
 
         if (breakdown.length > 0) {
-            const size = newShowChart ? { width: 2, height: 2 } : { width: 1, height: 1 };
+            const size = (newTab === 'pie' || newTab === 'bar') ? { width: 2, height: 2 } : { width: 1, height: 1 };
             onUpdateSize(size);
         }
     };
 
-    // Set initial size on mount
+    // Set initial size on mount for pie chart (default behavior)
     useEffect(() => {
-        if (breakdown.length > 0 && showChart) {
+        if (breakdown.length > 0 && activeTab !== 'simple') {
             onUpdateSize({ width: 2, height: 2 });
         }
     }, []); // Only run on mount
@@ -270,45 +293,95 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         if (!name) return '';
         return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
     }
-    // Custom label renderer for Pie slices
-    const renderLabel = (name: string, balance: number) => {
-        return `${shortenName(name)}: ${balance.toFixed(2)}`;
-    };
+
+    const tabs = [
+        { id: 'simple' as const, icon: List, label: 'Simple view' },
+        { id: 'pie' as const, icon: PieChartIcon, label: 'Pie chart', disabled: breakdown.length === 0 },
+        { id: 'bar' as const, icon: BarChart3, label: 'Evolution chart', disabled: breakdown.length === 0 },
+    ];
 
     return (
         <div className="flex flex-col items-center justify-center h-full p-4">
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
-                <button
-                    className={`ml-2 p-1 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${showChart ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
-                        }`}
-                    aria-label={showChart ? 'Hide chart' : 'Show chart'}
-                    onClick={e => { e.stopPropagation(); updateSize(); }}
-                    tabIndex={0}
-                >
-                    <PieChartIcon
-                        size={20}
-                        className={`transition-all hover:text-foreground ${showChart ? 'opacity-100 scale-110' : 'opacity-60'
-                            }`}
-                    />
-                </button>
+                
+                {/* Tab buttons */}
+                <div className="flex gap-1">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                className={`p-1.5 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${
+                                    isActive 
+                                        ? 'bg-primary text-primary-foreground' 
+                                        : tab.disabled
+                                            ? 'text-muted-foreground/50 cursor-not-allowed'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                aria-label={tab.label}
+                                onClick={e => { 
+                                    e.stopPropagation(); 
+                                    if (!tab.disabled) updateSize(tab.id); 
+                                }}
+                                disabled={tab.disabled}
+                                tabIndex={0}
+                            >
+                                <Icon
+                                    size={16}
+                                    className={`transition-all ${
+                                        isActive ? 'opacity-100' : 'opacity-70'
+                                    }`}
+                                />
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
+            
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center mb-2">
                 {formatMoney(data.value)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>
             </div>
-            {breakdown.length > 0 && showChart && (
+
+            {/* Tab content */}
+            {activeTab === 'simple' && breakdown.length > 0 && (
+                <div className="w-full space-y-2 mt-2">
+                    {breakdown.map((account, idx) => (
+                        <div key={account.id} className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">{shortenName(account.name, 15)}</span>
+                            <span className="font-medium">{account.balance.toFixed(2)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activeTab === 'pie' && breakdown.length > 0 && (
                 <div className="w-full flex-grow flex flex-col items-center mt-2">
                     <PieChartDisplay
                         breakdown={breakdown}
                         colors={COLORS}
-                        labelFormatter={renderLabel}
                         width={400}
                         height={280}
                         outerRadius={90}
                     />
                 </div>
             )}
+
+            {activeTab === 'bar' && breakdown.length > 0 && (
+                <div className="w-full flex-grow flex flex-col items-center mt-2">
+                    <CurrencyEvolutionChart currency={data.currency} />
+                </div>
+            )}
+
+            {breakdown.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center mt-2">
+                    <p>No accounts found</p>
+                    <p className="text-xs mt-1">Create accounts with this currency to see breakdown</p>
+                </div>
+            )}
+
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );
