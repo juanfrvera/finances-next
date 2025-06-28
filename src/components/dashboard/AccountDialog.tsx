@@ -172,6 +172,60 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
     );
 }
 
+// Confirmation Dialog Component
+function DeleteConfirmationDialog({ 
+    open, 
+    onOpenChange, 
+    onConfirm, 
+    accountName, 
+    isDeleting 
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: () => void;
+    accountName: string;
+    isDeleting: boolean;
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-destructive">
+                        <Trash2 className="h-5 w-5" />
+                        Are you sure?
+                    </DialogTitle>
+                    <DialogDescription className="text-left space-y-2">
+                        <div>
+                            You are about to delete <strong>{accountName}</strong> forever, 
+                            along with all the transactions ever done in this account.
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                            This action cannot be undone. All data will be permanently removed from our servers.
+                        </div>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end gap-2 mt-6">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => onOpenChange(false)}
+                        disabled={isDeleting}
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        variant="destructive" 
+                        onClick={onConfirm}
+                        disabled={isDeleting}
+                        className="min-w-[100px]"
+                    >
+                        {isDeleting ? "Deleting..." : "Delete Account"}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -182,6 +236,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [selectedAction, setSelectedAction] = useState<AccountAction>(null);
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
     // Reset selectedAction when dialog opens
     useEffect(() => {
@@ -256,8 +311,13 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
             showToast.update(toastId, toastMessages.deleteError, 'error');
         } finally {
             setDeleting(false);
+            setShowDeleteConfirmation(false);
             onOpenChange(false);
         }
+    }
+
+    function showDeleteDialog() {
+        setShowDeleteConfirmation(true);
     }
 
     function handleCancel() {
@@ -273,98 +333,109 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
     // Show action selection first
     if (!selectedAction) {
         return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
-                    {/* Action buttons positioned absolutely */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
-                        {/* More actions dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    disabled={deleting}
-                                >
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">More options</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    onSelect={handleDelete}
-                                    disabled={deleting}
-                                    className="text-destructive focus:text-destructive"
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2 text-destructive" />
-                                    <span>{deleting ? "Deleting..." : "Delete item"}</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+            <>
+                <Dialog open={open} onOpenChange={onOpenChange}>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+                        {/* Action buttons positioned absolutely */}
+                        <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+                            {/* More actions dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        disabled={deleting}
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                        <span className="sr-only">More options</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        onSelect={showDeleteDialog}
+                                        disabled={deleting}
+                                        className="text-destructive focus:text-destructive"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                                        <span>Delete Account</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
-                        {/* Close button */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Close</span>
-                        </Button>
-                    </div>
+                            {/* Close button */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => onOpenChange(false)}
+                            >
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Close</span>
+                            </Button>
+                        </div>
 
-                    <DialogHeader className="pr-20">
-                        <DialogTitle>Account Overview</DialogTitle>
-                        <DialogDescription>
-                            {item.name} - Manage your account balance and transactions.
-                        </DialogDescription>
-                    </DialogHeader>
+                        <DialogHeader className="pr-20">
+                            <DialogTitle>Account Overview</DialogTitle>
+                            <DialogDescription>
+                                {item.name} - Manage your account balance and transactions.
+                            </DialogDescription>
+                        </DialogHeader>
 
-                    {/* Main content area with balance and actions */}
-                    <div className="grid grid-cols-3 gap-6">
-                        {/* Left side - Balance display */}
-                        <div className="col-span-1 flex flex-col items-center justify-center p-6 bg-accent/50 rounded-lg">
-                            <div className="text-center">
-                                <div className="text-2xl font-bold text-foreground mb-1">
-                                    {formatMoney(item.balance || 0)}
+                        {/* Main content area with balance and actions */}
+                        <div className="grid grid-cols-3 gap-6">
+                            {/* Left side - Balance display */}
+                            <div className="col-span-1 flex flex-col items-center justify-center p-6 bg-accent/50 rounded-lg">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-foreground mb-1">
+                                        {formatMoney(item.balance || 0)}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground uppercase tracking-wider">
+                                        {item.currency || 'USD'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        Current Balance
+                                    </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground uppercase tracking-wider">
-                                    {item.currency || 'USD'}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    Current Balance
-                                </div>
+                            </div>
+
+                            {/* Right side - Action buttons */}
+                            <div className="col-span-2 grid grid-cols-1 gap-3">
+                                <ActionBox
+                                    label="Update balance"
+                                    description="Update the current balance of the account."
+                                    onClick={() => setSelectedAction('updateBalance')}
+                                />
+                                <ActionBox
+                                    label="Transactions"
+                                    description="View and manage account transactions."
+                                    onClick={() => setSelectedAction('transactions')}
+                                />
+                                <ActionBox
+                                    label="Edit information"
+                                    description="Edit the account name and other details."
+                                    onClick={() => setSelectedAction('editInfo')}
+                                />
                             </div>
                         </div>
 
-                        {/* Right side - Action buttons */}
-                        <div className="col-span-2 grid grid-cols-1 gap-3">
-                            <ActionBox
-                                label="Update balance"
-                                description="Update the current balance of the account."
-                                onClick={() => setSelectedAction('updateBalance')}
-                            />
-                            <ActionBox
-                                label="Transactions"
-                                description="View and manage account transactions."
-                                onClick={() => setSelectedAction('transactions')}
-                            />
-                            <ActionBox
-                                label="Edit information"
-                                description="Edit the account name and other details."
-                                onClick={() => setSelectedAction('editInfo')}
-                            />
+                        {/* Balance chart */}
+                        <div className="mt-6">
+                            <h3 className="text-sm font-medium text-foreground mb-3">Balance History</h3>
+                            <BalanceChart itemId={item._id} currentBalance={item.balance || 0} />
                         </div>
-                    </div>
+                    </DialogContent>
+                </Dialog>
 
-                    {/* Balance chart */}
-                    <div className="mt-6">
-                        <h3 className="text-sm font-medium text-foreground mb-3">Balance History</h3>
-                        <BalanceChart itemId={item._id} currentBalance={item.balance || 0} />
-                    </div>
-                </DialogContent>
-            </Dialog>
+                {/* Delete Confirmation Dialog */}
+                <DeleteConfirmationDialog
+                    open={showDeleteConfirmation}
+                    onOpenChange={setShowDeleteConfirmation}
+                    onConfirm={handleDelete}
+                    accountName={item?.name || 'this account'}
+                    isDeleting={deleting}
+                />
+            </>
         );
     }
 
@@ -403,87 +474,98 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
-                {/* Action buttons positioned absolutely */}
-                <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
-                    {selectedAction !== 'transactions' && (
-                        <>
-                            {/* More actions dropdown */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        disabled={deleting}
-                                    >
-                                        <MoreVertical className="h-4 w-4" />
-                                        <span className="sr-only">More options</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                        onSelect={handleDelete}
-                                        disabled={deleting}
-                                        className="text-destructive focus:text-destructive flex items-center gap-2"
-                                    >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                        {deleting ? "Deleting..." : "Delete item"}
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+                    {/* Action buttons positioned absolutely */}
+                    <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+                        {selectedAction !== 'transactions' && (
+                            <>
+                                {/* More actions dropdown */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            disabled={deleting}
+                                        >
+                                            <MoreVertical className="h-4 w-4" />
+                                            <span className="sr-only">More options</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onSelect={showDeleteDialog}
+                                            disabled={deleting}
+                                            className="text-destructive focus:text-destructive flex items-center gap-2"
+                                        >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                            Delete Account
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
 
-                            {/* Close button */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => onOpenChange(false)}
-                            >
-                                <X className="h-4 w-4" />
-                                <span className="sr-only">Close</span>
-                            </Button>
-                        </>
-                    )}
-                </div>
-
-                {/* Standard dialog header */}
-                <DialogHeader className="pr-4">
-                    <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2 min-h-[2.5rem]">
-                            {selectedAction && (
-                                <button
-                                    className="cursor-pointer p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"
-                                    onClick={resetToSelection}
-                                    aria-label="Back"
-                                    type="button"
+                                {/* Close button */}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => onOpenChange(false)}
                                 >
-                                    <ArrowLeft className="w-5 h-5" />
-                                </button>
-                            )}
-                            <div>
-                                <DialogTitle>{dialogTitle}</DialogTitle>
-                                <DialogDescription>
-                                    {dialogDescription}
-                                </DialogDescription>
-                            </div>
-                        </div>
-                        {selectedAction === 'transactions' && (
-                            <Button
-                                onClick={() => setSelectedAction('addTransaction')}
-                                size="sm"
-                                className="flex items-center gap-2 ml-4"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Add Transaction
-                            </Button>
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Close</span>
+                                </Button>
+                            </>
                         )}
                     </div>
-                </DialogHeader>
 
-                {form}
-            </DialogContent>
-        </Dialog>
+                    {/* Standard dialog header */}
+                    <DialogHeader className="pr-4">
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2 min-h-[2.5rem]">
+                                {selectedAction && (
+                                    <button
+                                        className="cursor-pointer p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"
+                                        onClick={resetToSelection}
+                                        aria-label="Back"
+                                        type="button"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                )}
+                                <div>
+                                    <DialogTitle>{dialogTitle}</DialogTitle>
+                                    <DialogDescription>
+                                        {dialogDescription}
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                            {selectedAction === 'transactions' && (
+                                <Button
+                                    onClick={() => setSelectedAction('addTransaction')}
+                                    size="sm"
+                                    className="flex items-center gap-2 ml-4"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add Transaction
+                                </Button>
+                            )}
+                        </div>
+                    </DialogHeader>
+
+                    {form}
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmationDialog
+                open={showDeleteConfirmation}
+                onOpenChange={setShowDeleteConfirmation}
+                onConfirm={handleDelete}
+                accountName={item?.name || 'this account'}
+                isDeleting={deleting}
+            />
+        </>
     );
 }
