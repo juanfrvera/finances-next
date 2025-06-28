@@ -122,22 +122,22 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                     <defs>
                         <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={`var(--primary)`} stopOpacity={0.9} />
-                            <stop offset="100%" stopColor={`var(--primary)`} stopOpacity={0.4} />
+                            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.4} />
                         </linearGradient>
                     </defs>
                     <XAxis
                         dataKey="date"
                         fontSize={11}
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        axisLine={{ stroke: 'hsl(var(--border))' }}
-                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                        tick={{ fill: 'var(--muted-foreground)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={{ stroke: 'var(--border)' }}
                     />
                     <YAxis
                         fontSize={11}
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        axisLine={{ stroke: 'hsl(var(--border))' }}
-                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                        tick={{ fill: 'var(--muted-foreground)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={{ stroke: 'var(--border)' }}
                         domain={['dataMin - 100', 'dataMax + 100']}
                         tickFormatter={(value) => {
                             // Round to nearest 10 for clean display, no decimals
@@ -150,19 +150,19 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                     />
                     <Tooltip
                         formatter={(value: number) => [formatMoney(value), 'Balance']}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'var(--foreground)' }}
                         contentStyle={{
-                            backgroundColor: 'hsl(var(--popover))',
-                            border: '1px solid hsl(var(--border))',
+                            backgroundColor: 'var(--popover)',
+                            border: '1px solid var(--border)',
                             borderRadius: '8px',
-                            color: 'hsl(var(--popover-foreground))',
+                            color: 'var(--popover-foreground)',
                             boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                         }}
                     />
                     <Bar
                         dataKey="balance"
                         fill="url(#barGradient)"
-                        stroke={`oklch(var(--primary))`}
+                        stroke="var(--primary)"
                         strokeWidth={1}
                         radius={[4, 4, 0, 0]}
                     />
