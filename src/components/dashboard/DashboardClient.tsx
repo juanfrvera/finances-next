@@ -5,7 +5,7 @@ import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import { Card } from "@/components/ui/card";
 import { PieChart as PieChartIcon, BarChart3, List } from "lucide-react";
-import { CARD_SIZE_UNIT, GRID_GAP } from "@/lib/constants";
+import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 
@@ -281,18 +281,10 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         }
     };
 
-    // Set initial size on mount for pie chart (default behavior)
+    // Set initial size on mount - always start with 1x1 for simple view
     useEffect(() => {
-        if (breakdown.length > 0 && activeTab !== 'simple') {
-            onUpdateSize({ width: 2, height: 2 });
-        }
+        onUpdateSize({ width: 1, height: 1 });
     }, []); // Only run on mount
-
-    // Helper to shorten names
-    function shortenName(name: string, maxLen = 10) {
-        if (!name) return '';
-        return name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
-    }
 
     const tabs = [
         { id: 'simple' as const, icon: List, label: 'Simple view' },
@@ -346,14 +338,15 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
             </div>
 
             {/* Tab content */}
-            {activeTab === 'simple' && breakdown.length > 0 && (
-                <div className="w-full space-y-2 mt-2">
-                    {breakdown.map((account, idx) => (
-                        <div key={account.id} className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">{shortenName(account.name, 15)}</span>
-                            <span className="font-medium">{account.balance.toFixed(2)}</span>
-                        </div>
-                    ))}
+            {activeTab === 'simple' && (
+                <div className="text-center">
+                    {breakdown.length > 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            {breakdown.length} account{breakdown.length > 1 ? 's' : ''}
+                        </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No accounts</p>
+                    )}
                 </div>
             )}
 

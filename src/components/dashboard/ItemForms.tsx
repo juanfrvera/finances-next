@@ -247,7 +247,11 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
 }
 
 export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Currency", showDelete, onDelete }: {
-    initial?: { currency: string };
+    initial?: { 
+        currency: string; 
+        value?: number; 
+        accountBreakdown?: { id: string; name: string; balance: number }[] 
+    };
     loading: boolean;
     deleting?: boolean;
     onSubmit: (data: { currency: string }) => void;
@@ -259,19 +263,49 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
     const [currencyValue, setCurrencyValue] = useState(initial?.currency || '');
     const isValid = !!currencyValue;
     const isChanged = currencyValue !== (initial?.currency || '');
+    const accountBreakdown = initial?.accountBreakdown || [];
+    
     useEffect(() => {
         if (initial) setCurrencyValue(initial.currency || '');
     }, [initial]);
+    
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         onSubmit({ currency: currencyValue });
     }
+    
     return (
-        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <div className="grid w-full gap-3">
                 <Label htmlFor="currency-currency">Currency</Label>
                 <Input id="currency-currency" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
             </div>
+            
+            {/* Account breakdown section */}
+            {accountBreakdown.length > 0 && (
+                <div className="grid w-full gap-3">
+                    <Label>Account Breakdown</Label>
+                    <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                        {accountBreakdown.map((account) => (
+                            <div key={account.id} className="flex justify-between items-center text-sm py-1">
+                                <span className="font-medium">{account.name}</span>
+                                <span className="text-muted-foreground">
+                                    {account.balance.toFixed(2)} {currencyValue}
+                                </span>
+                            </div>
+                        ))}
+                        <div className="border-t pt-2 mt-2">
+                            <div className="flex justify-between items-center text-sm font-semibold">
+                                <span>Total</span>
+                                <span>
+                                    {accountBreakdown.reduce((sum, acc) => sum + acc.balance, 0).toFixed(2)} {currencyValue}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
