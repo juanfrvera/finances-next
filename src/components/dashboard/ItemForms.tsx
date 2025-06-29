@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function Spinner() {
     return (
@@ -9,6 +13,73 @@ function Spinner() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
         </svg>
+    );
+}
+
+function DatePicker({ date, onDateChange }: { date?: Date; onDateChange: (date: Date | undefined) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const handleDateSelect = (selectedDate: Date | undefined) => {
+        onDateChange(selectedDate);
+        setIsOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open && !date) {
+            // If closing without a date selected, default to today
+            onDateChange(new Date());
+        }
+        setIsOpen(open);
+    };
+
+    const setToday = () => {
+        onDateChange(new Date());
+        setIsOpen(false);
+    };
+
+    return (
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? formatDate(date) : "Pick a date"}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <div className="p-3">
+                    <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                    />
+                    <div className="mt-3 flex justify-end">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={setToday}
+                        >
+                            Today
+                        </Button>
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
     );
 }
 
@@ -328,13 +399,14 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
 export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
     initial?: { name: string; balance: number; currency: string };
     loading: boolean;
-    onSubmit: (data: { newBalance: number; note?: string }) => void;
+    onSubmit: (data: { newBalance: number; note?: string; date?: Date }) => void;
     onCancel?: () => void;
 }) {
     const [form, setForm] = useState({
         newBalance: initial?.balance?.toString() || '',
         note: '',
     });
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     const isValid = form.newBalance && !isNaN(Number(form.newBalance));
     const hasChanged = form.newBalance !== (initial?.balance?.toString() || '');
@@ -354,6 +426,7 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
         onSubmit({
             newBalance: Number(form.newBalance),
             note: form.note || undefined,
+            date: selectedDate,
         });
     }
 
@@ -393,6 +466,13 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
                         placeholder="e.g., Bank transfer, Cash deposit, Error correction"
                     />
                 </div>
+                <div>
+                    <Label htmlFor="date">Date</Label>
+                    <DatePicker
+                        date={selectedDate}
+                        onDateChange={(date) => setSelectedDate(date || new Date())}
+                    />
+                </div>
             </div>
             <div className="flex gap-2 mt-4">
                 <Button
@@ -413,15 +493,16 @@ export function UpdateBalanceForm({ initial, loading, onSubmit, onCancel }: {
 }
 
 export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
-    initial?: { currency: string };
+    initial?: { name: string; currency: string };
     loading: boolean;
-    onSubmit: (data: { amount: number; note?: string }) => void;
+    onSubmit: (data: { amount: number; note?: string; date?: Date }) => void;
     onCancel?: () => void;
 }) {
     const [form, setForm] = useState({
         amount: '',
         note: '',
     });
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     const isValid = form.amount && !isNaN(Number(form.amount)) && Number(form.amount) !== 0;
 
@@ -431,12 +512,23 @@ export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
         onSubmit({
             amount: Number(form.amount),
             note: form.note || undefined,
+            date: selectedDate,
         });
     }
 
     return (
         <form onSubmit={handleSubmit}>
             <div className="space-y-2">
+                <div>
+                    <Label htmlFor="accountName">Account Name</Label>
+                    <Input
+                        id="accountName"
+                        type="text"
+                        value={initial?.name || ''}
+                        readOnly
+                        className="bg-muted text-muted-foreground"
+                    />
+                </div>
                 <div>
                     <Label htmlFor="amount">Amount ({initial?.currency || ''})</Label>
                     <Input
@@ -461,6 +553,13 @@ export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
                         value={form.note}
                         onChange={(e) => setForm(prev => ({ ...prev, note: e.target.value }))}
                         placeholder="e.g., Salary, Rent payment, Grocery shopping"
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="date">Date</Label>
+                    <DatePicker
+                        date={selectedDate}
+                        onDateChange={(date) => setSelectedDate(date || new Date())}
                     />
                 </div>
             </div>
