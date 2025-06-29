@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
@@ -8,6 +8,7 @@ import { PieChart as PieChartIcon, BarChart3, List } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
+import { CurrencyTabStorage, type CurrencyTab } from "@/lib/currency-tab-storage";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
@@ -47,6 +48,19 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
+
+    // Clean up localStorage entries for currencies that no longer exist
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Get all currency names from current items
+            const existingCurrencies = clientItems
+                .filter(item => item.type === 'currency')
+                .map(item => item.currency);
+            
+            // Clean up entries for currencies that don't exist anymore
+            CurrencyTabStorage.cleanup(existingCurrencies);
+        }
+    }, [clientItems]); // Run when items change
 
     // Helper function to recalculate currency values based on account items
     function recalculateCurrencyValues(items: any[]) {
@@ -121,12 +135,19 @@ export default function DashboardClient({ items }: DashboardClientProps) {
         // (If you want to support SSR fallback, you may want to filter from both)
     }
 
-    function updateCardSize(itemId: string, size: { width: number; height: number }) {
-        setCardSizes(prev => ({
-            ...prev,
-            [itemId]: size
-        }));
-    }
+    const updateCardSize = useCallback((itemId: string, size: { width: number; height: number }) => {
+        setCardSizes(prev => {
+            // Only update if the size actually changed to prevent unnecessary re-renders
+            const currentSize = prev[itemId];
+            if (currentSize && currentSize.width === size.width && currentSize.height === size.height) {
+                return prev;
+            }
+            return {
+                ...prev,
+                [itemId]: size
+            };
+        });
+    }, []);
 
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
     const sortedItems = clientItems.slice().sort((a, b) => {
@@ -262,18 +283,44 @@ interface CurrencyProps {
     onUpdateSize: (size: { width: number; height: number }) => void;
 }
 
-type CurrencyTab = 'simple' | 'pie' | 'bar';
-
 function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     const COLORS = [
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
     const breakdown = data.accountBreakdown || [];
+    
+    // Always start with 'simple' for SSR compatibility
     const [activeTab, setActiveTab] = useState<CurrencyTab>('simple');
+    const [isHydrated, setIsHydrated] = useState(false);
 
-    // Update card size when tab changes
+    // Load saved tab from localStorage after hydration
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setIsHydrated(true);
+            try {
+                const savedTab = CurrencyTabStorage.getTab(data.currency);
+                // Ensure the saved tab is valid for the current state
+                if (breakdown.length === 0 && savedTab !== 'simple') {
+                    setActiveTab('simple');
+                    CurrencyTabStorage.saveTab(data.currency, 'simple');
+                } else {
+                    setActiveTab(savedTab);
+                }
+            } catch (error) {
+                console.warn('Failed to load saved tab for currency:', data.currency, error);
+                setActiveTab('simple');
+            }
+        }
+    }, [data.currency, breakdown.length]); // Load once after hydration
+
+    // Update card size when tab changes and save to localStorage
     const updateSize = (newTab: CurrencyTab) => {
         setActiveTab(newTab);
+        
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+            CurrencyTabStorage.saveTab(data.currency, newTab);
+        }
 
         if (breakdown.length > 0) {
             const size = (newTab === 'pie' || newTab === 'bar') ? { width: 2, height: 2 } : { width: 1, height: 1 };
@@ -281,10 +328,29 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         }
     };
 
-    // Set initial size on mount - always start with 1x1 for simple view
+    // Set initial size on mount based on saved tab - only after hydration
     useEffect(() => {
-        onUpdateSize({ width: 1, height: 1 });
-    }, []); // Only run on mount
+        if (!isHydrated) return; // Wait for hydration to complete
+        
+        let targetSize: { width: number; height: number };
+        
+        if (breakdown.length > 0) {
+            targetSize = (activeTab === 'pie' || activeTab === 'bar') ? { width: 2, height: 2 } : { width: 1, height: 1 };
+        } else {
+            // Always start with 1x1 for simple view when no breakdown
+            targetSize = { width: 1, height: 1 };
+            // If there's no breakdown but a non-simple tab is selected, reset to simple
+            if (activeTab !== 'simple') {
+                setActiveTab('simple');
+                if (typeof window !== 'undefined') {
+                    CurrencyTabStorage.saveTab(data.currency, 'simple');
+                }
+                return; // Exit early to avoid calling onUpdateSize with wrong size
+            }
+        }
+        
+        onUpdateSize(targetSize);
+    }, [activeTab, breakdown.length, data.currency, isHydrated]); // Include isHydrated
 
     const tabs = [
         { id: 'simple' as const, icon: List, label: 'Simple view' },
