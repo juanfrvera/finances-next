@@ -3,7 +3,7 @@ import DashboardClient from "@/components/dashboard/DashboardClient";
 
 export default async function Dashboard() {
   const db = await getDb();
-  const items = await db.collection("items").find({userId: process.env.TEST_USER_ID}).toArray();
+  const items = await db.collection("items").find({ userId: process.env.TEST_USER_ID }).toArray();
   // Convert to plain objects and _id to string, ensure createDate/editDate are strings
   const plainItems = items.map((item: any) => ({
     ...item,
@@ -12,9 +12,13 @@ export default async function Dashboard() {
     editDate: item.editDate ? new Date(item.editDate).toISOString() : undefined,
   }));
 
-  // Calculate currency values and account breakdowns
-  const accountItems = plainItems.filter((item) => item.type === "account");
-  const mappedItems = plainItems.map((item) => {
+  // Separate active and archived items
+  const activeItems = plainItems.filter((item) => !item.archived);
+  const archivedItems = plainItems.filter((item) => item.archived);
+
+  // Calculate currency values and account breakdowns (only for active items)
+  const accountItems = activeItems.filter((item) => item.type === "account");
+  const mappedItems = activeItems.map((item) => {
     if (item.type === "currency") {
       const accounts = accountItems.filter((acc) => acc.currency === item.currency);
       const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
@@ -40,7 +44,7 @@ export default async function Dashboard() {
           <p className="text-gray-600 mb-4">Get started by creating your first item!</p>
         </div>
       )}
-      <DashboardClient items={mappedItems} />
+      <DashboardClient items={mappedItems} archivedItems={archivedItems} />
     </div>
   );
 }

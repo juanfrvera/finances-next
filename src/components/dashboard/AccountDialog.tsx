@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AccountForm, UpdateBalanceForm, TransactionForm } from "./ItemForms";
 import TransactionsList from "./TransactionsList";
 import { useState, useEffect } from "react";
-import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction, getTransactions } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, updateAccountBalance, createTransaction, getTransactions, archiveItem, unarchiveItem } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, X, Trash2, ArrowLeft, Plus } from "lucide-react";
+import { MoreVertical, X, Trash2, ArrowLeft, Plus, Archive } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -173,12 +173,12 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
 }
 
 // Confirmation Dialog Component
-function DeleteConfirmationDialog({ 
-    open, 
-    onOpenChange, 
-    onConfirm, 
-    accountName, 
-    isDeleting 
+function DeleteConfirmationDialog({
+    open,
+    onOpenChange,
+    onConfirm,
+    accountName,
+    isDeleting
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -197,7 +197,7 @@ function DeleteConfirmationDialog({
                 </DialogHeader>
                 <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                        You are about to delete <strong className="text-foreground">{accountName}</strong> forever, 
+                        You are about to delete <strong className="text-foreground">{accountName}</strong> forever,
                         along with all the transactions ever done in this account.
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -205,15 +205,15 @@ function DeleteConfirmationDialog({
                     </p>
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={() => onOpenChange(false)}
                         disabled={isDeleting}
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        variant="destructive" 
+                    <Button
+                        variant="destructive"
                         onClick={onConfirm}
                         disabled={isDeleting}
                         className="min-w-[100px]"
@@ -226,15 +226,19 @@ function DeleteConfirmationDialog({
     );
 }
 
-export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
+export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
     onItemUpdated: (item: any) => void;
     onItemDeleted: (id: string) => void;
+    onItemArchived?: (item: any) => void;
+    onItemUnarchived?: (item: any) => void;
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [archiving, setArchiving] = useState(false);
+    const [unarchiving, setUnarchiving] = useState(false);
     const [selectedAction, setSelectedAction] = useState<AccountAction>(null);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
@@ -316,6 +320,40 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         }
     }
 
+    async function handleArchive() {
+        if (!onItemArchived) return;
+
+        setArchiving(true);
+        const toastId = showToast.loading('Archiving account...');
+        try {
+            const archived = await archiveItem(item._id);
+            onItemArchived(archived);
+            showToast.update(toastId, 'Account archived successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to archive account', 'error');
+        } finally {
+            setArchiving(false);
+            onOpenChange(false);
+        }
+    }
+
+    async function handleUnarchive() {
+        if (!onItemUnarchived) return;
+
+        setUnarchiving(true);
+        const toastId = showToast.loading('Unarchiving account...');
+        try {
+            const unarchived = await unarchiveItem(item._id);
+            onItemUnarchived(unarchived);
+            showToast.update(toastId, 'Account unarchived successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to unarchive account', 'error');
+        } finally {
+            setUnarchiving(false);
+            onOpenChange(false);
+        }
+    }
+
     function showDeleteDialog() {
         setShowDeleteConfirmation(true);
     }
@@ -345,13 +383,34 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8"
-                                        disabled={deleting}
+                                        disabled={deleting || archiving || unarchiving}
                                     >
                                         <MoreVertical className="h-4 w-4" />
                                         <span className="sr-only">More options</span>
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                    {item.archived ? (
+                                        onItemUnarchived && (
+                                            <DropdownMenuItem
+                                                onSelect={handleUnarchive}
+                                                disabled={unarchiving}
+                                            >
+                                                <Archive className="h-4 w-4 mr-2" />
+                                                <span>{unarchiving ? "Unarchiving..." : "Unarchive Account"}</span>
+                                            </DropdownMenuItem>
+                                        )
+                                    ) : (
+                                        onItemArchived && (
+                                            <DropdownMenuItem
+                                                onSelect={handleArchive}
+                                                disabled={archiving}
+                                            >
+                                                <Archive className="h-4 w-4 mr-2" />
+                                                <span>{archiving ? "Archiving..." : "Archive Account"}</span>
+                                            </DropdownMenuItem>
+                                        )
+                                    )}
                                     <DropdownMenuItem
                                         onSelect={showDeleteDialog}
                                         disabled={deleting}
@@ -488,13 +547,36 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8"
-                                            disabled={deleting}
+                                            disabled={deleting || archiving || unarchiving}
                                         >
                                             <MoreVertical className="h-4 w-4" />
                                             <span className="sr-only">More options</span>
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        {item.archived ? (
+                                            onItemUnarchived && (
+                                                <DropdownMenuItem
+                                                    onSelect={handleUnarchive}
+                                                    disabled={unarchiving}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                    {unarchiving ? "Unarchiving..." : "Unarchive Account"}
+                                                </DropdownMenuItem>
+                                            )
+                                        ) : (
+                                            onItemArchived && (
+                                                <DropdownMenuItem
+                                                    onSelect={handleArchive}
+                                                    disabled={archiving}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                    {archiving ? "Archiving..." : "Archive Account"}
+                                                </DropdownMenuItem>
+                                            )
+                                        )}
                                         <DropdownMenuItem
                                             onSelect={showDeleteDialog}
                                             disabled={deleting}

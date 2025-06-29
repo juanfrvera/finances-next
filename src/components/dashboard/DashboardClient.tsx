@@ -24,6 +24,7 @@ const CurrencyEvolutionChart = dynamic(() => import("./CurrencyEvolutionChart"),
 
 interface DashboardClientProps {
     items: any[];
+    archivedItems: any[];
 }
 
 // Helper function to format money with smaller decimals
@@ -38,16 +39,28 @@ function formatMoney(amount: number) {
     return (<span>{parts[0]}<span className="text-sm">.{parts[1]}</span></span>);
 }
 
-export default function DashboardClient({ items }: DashboardClientProps) {
+export default function DashboardClient({ items, archivedItems }: DashboardClientProps) {
     const [clientItems, setClientItems] = useState<any[]>(items);
+    const [clientArchivedItems, setClientArchivedItems] = useState<any[]>(archivedItems);
+    const [showArchived, setShowArchived] = useState(false);
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
-    
+
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
+
+    // Sync items with props
+    useEffect(() => {
+        setClientItems(items);
+    }, [items]);
+
+    // Sync archived items with props
+    useEffect(() => {
+        setClientArchivedItems(archivedItems);
+    }, [archivedItems]);
 
     // Clean up localStorage entries for currencies that no longer exist
     useEffect(() => {
@@ -56,7 +69,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
             const existingCurrencies = clientItems
                 .filter(item => item.type === 'currency')
                 .map(item => item.currency);
-            
+
             // Clean up entries for currencies that don't exist anymore
             CurrencyTabStorage.cleanup(existingCurrencies);
         }
@@ -65,7 +78,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     // Helper function to recalculate currency values based on account items
     function recalculateCurrencyValues(items: any[]) {
         const accountItems = items.filter((item) => item.type === "account");
-        
+
         return items.map((item) => {
             if (item.type === "currency") {
                 const accounts = accountItems.filter((acc) => acc.currency === item.currency);
@@ -84,7 +97,7 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     function handleItemCreated(newItem: any) {
         setClientItems((prev) => {
             const updatedItems = [newItem, ...prev];
-            
+
             // If an account was created, recalculate currency values
             if (newItem.type === 'account') {
                 // Invalidate currency evolution cache for this specific currency
@@ -93,14 +106,14 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                 }
                 return recalculateCurrencyValues(updatedItems);
             }
-            
+
             return updatedItems;
         });
     }
     function handleItemUpdated(updated: any) {
         setClientItems((prev) => {
             const updatedItems = prev.map(i => i._id === updated._id ? updated : i);
-            
+
             // If an account was updated, recalculate currency values
             if (updated.type === 'account') {
                 // Invalidate currency evolution cache for this specific currency
@@ -109,17 +122,17 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                 }
                 return recalculateCurrencyValues(updatedItems);
             }
-            
+
             return updatedItems;
         });
     }
     function handleItemDeleted(id: string) {
         setClientItems((prev) => {
             const filteredItems = prev.filter(i => i._id !== id);
-            
+
             // Find the deleted item to check if it was an account
             const deletedItem = prev.find(i => i._id === id);
-            
+
             if (deletedItem && deletedItem.type === 'account') {
                 // Invalidate currency evolution cache for this specific currency
                 if (deletedItem.currency) {
@@ -128,11 +141,36 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                 // If an account was deleted, recalculate currency values
                 return recalculateCurrencyValues(filteredItems);
             }
-            
+
             return filteredItems;
         });
         // Also remove from initial items if present
         // (If you want to support SSR fallback, you may want to filter from both)
+    }
+
+    function handleItemArchived(updated: any) {
+        // Move item from active to archived
+        setClientItems((prev) => prev.filter(i => i._id !== updated._id));
+        setClientArchivedItems((prev) => [...prev, updated]);
+    }
+
+    function handleItemUnarchived(updated: any) {
+        // Move item from archived to active
+        setClientArchivedItems((prev) => prev.filter(i => i._id !== updated._id));
+        setClientItems((prev) => {
+            const updatedItems = [...prev, updated];
+
+            // If an account was unarchived, recalculate currency values
+            if (updated.type === 'account') {
+                // Invalidate currency evolution cache for this specific currency
+                if (updated.currency) {
+                    invalidateCurrency(updated.currency);
+                }
+                return recalculateCurrencyValues(updatedItems);
+            }
+
+            return updatedItems;
+        });
     }
 
     const updateCardSize = useCallback((itemId: string, size: { width: number; height: number }) => {
@@ -150,7 +188,8 @@ export default function DashboardClient({ items }: DashboardClientProps) {
     }, []);
 
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
-    const sortedItems = clientItems.slice().sort((a, b) => {
+    const itemsToDisplay = showArchived ? clientArchivedItems : clientItems;
+    const sortedItems = itemsToDisplay.slice().sort((a, b) => {
         const aHasDate = !!a.editDate;
         const bHasDate = !!b.editDate;
         if (!aHasDate && !bHasDate) return 0;
@@ -169,8 +208,16 @@ export default function DashboardClient({ items }: DashboardClientProps) {
                 item={selectedItem}
                 onItemUpdated={handleItemUpdated}
                 onItemDeleted={handleItemDeleted}
+                onItemArchived={handleItemArchived}
+                onItemUnarchived={handleItemUnarchived}
             />
             <div className="flex justify-end mb-2 gap-2 items-center">
+                <button
+                    className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
+                    onClick={() => setShowArchived(v => !v)}
+                >
+                    {showArchived ? `Active Items (${clientItems.length})` : `Archived Items (${clientArchivedItems.length})`}
+                </button>
                 <button
                     className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
                     onClick={() => setSortDesc((v) => !v)}
@@ -234,7 +281,7 @@ function ItemCard(props: any) {
 
     return (
         <Card
-            className={`relative group p-0 cursor-pointer transition-all duration-200 hover:shadow-lg hover:bg-accent/50 hover:border-accent-foreground/20 hover:scale-[1.02] dark:hover:bg-accent/30 dark:hover:border-accent-foreground/30 ${isExpanded ? 'expanded-card' : ''}`} // p-0 because children will have padding
+            className={`relative group p-0 cursor-pointer transition-all duration-200 hover:shadow-lg hover:bg-accent/50 hover:border-accent-foreground/20 hover:scale-[1.02] dark:hover:bg-accent/30 dark:hover:border-accent-foreground/30 ${isExpanded ? 'expanded-card' : ''} ${rest.archived ? 'opacity-60' : ''}`} // p-0 because children will have padding, dimmed if archived
             style={{
                 // Let CSS Grid handle the sizing, just set minimum dimensions
                 minWidth: CARD_SIZE_UNIT,
@@ -247,6 +294,11 @@ function ItemCard(props: any) {
             }}
             onClick={onClick}
         >
+            {rest.archived && (
+                <div className="absolute top-2 right-2 z-10 bg-muted text-muted-foreground text-xs px-2 py-1 rounded">
+                    Archived
+                </div>
+            )}
             {rest.type === 'account' && <Account data={rest} showJson={showJson} />}
             {rest.type === 'currency' && <Currency data={rest} showJson={showJson} onUpdateSize={onUpdateSize} />}
             {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
@@ -288,7 +340,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8dd1e1', '#a4de6c', '#d0ed57', '#fa8072', '#b0e0e6', '#f08080',
     ];
     const breakdown = data.accountBreakdown || [];
-    
+
     // Always start with 'simple' for SSR compatibility
     const [activeTab, setActiveTab] = useState<CurrencyTab>('simple');
     const [isHydrated, setIsHydrated] = useState(false);
@@ -316,7 +368,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     // Update card size when tab changes and save to localStorage
     const updateSize = (newTab: CurrencyTab) => {
         setActiveTab(newTab);
-        
+
         // Save to localStorage
         if (typeof window !== 'undefined') {
             CurrencyTabStorage.saveTab(data.currency, newTab);
@@ -331,9 +383,9 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     // Set initial size on mount based on saved tab - only after hydration
     useEffect(() => {
         if (!isHydrated) return; // Wait for hydration to complete
-        
+
         let targetSize: { width: number; height: number };
-        
+
         if (breakdown.length > 0) {
             targetSize = (activeTab === 'pie' || activeTab === 'bar') ? { width: 2, height: 2 } : { width: 1, height: 1 };
         } else {
@@ -348,7 +400,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
                 return; // Exit early to avoid calling onUpdateSize with wrong size
             }
         }
-        
+
         onUpdateSize(targetSize);
     }, [activeTab, breakdown.length, data.currency, isHydrated]); // Include isHydrated
 
@@ -362,7 +414,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         <div className="flex flex-col items-center justify-center h-full p-4">
             <div className="flex items-center w-full justify-between mb-2">
                 <h2 className="text-lg font-semibold text-center flex-1">{data.currency}</h2>
-                
+
                 {/* Tab buttons */}
                 <div className="flex gap-1">
                     {tabs.map((tab) => {
@@ -371,33 +423,31 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
                         return (
                             <button
                                 key={tab.id}
-                                className={`p-1.5 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${
-                                    isActive 
-                                        ? 'bg-primary text-primary-foreground' 
+                                className={`p-1.5 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${isActive
+                                        ? 'bg-primary text-primary-foreground'
                                         : tab.disabled
                                             ? 'text-muted-foreground/50 cursor-not-allowed'
                                             : 'text-muted-foreground hover:text-foreground'
-                                }`}
+                                    }`}
                                 aria-label={tab.label}
-                                onClick={e => { 
-                                    e.stopPropagation(); 
-                                    if (!tab.disabled) updateSize(tab.id); 
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    if (!tab.disabled) updateSize(tab.id);
                                 }}
                                 disabled={tab.disabled}
                                 tabIndex={0}
                             >
                                 <Icon
                                     size={16}
-                                    className={`transition-all ${
-                                        isActive ? 'opacity-100' : 'opacity-70'
-                                    }`}
+                                    className={`transition-all ${isActive ? 'opacity-100' : 'opacity-70'
+                                        }`}
                                 />
                             </button>
                         );
                     })}
                 </div>
             </div>
-            
+
             <div className="text-2xl font-bold flex items-baseline gap-1 justify-center mb-2">
                 {formatMoney(data.value)}
                 <span className="text-base font-normal ml-1">{data.currency}</span>

@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ServiceForm, DebtForm, CurrencyForm } from "./ItemForms";
 import AccountDialog from "./AccountDialog";
 import { useState } from "react";
-import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, archiveItem, unarchiveItem } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, X, Trash2 } from "lucide-react";
+import { MoreVertical, X, Trash2, Archive } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,24 +14,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
-export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
+export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
     onItemUpdated: (item: any) => void;
     onItemDeleted: (id: string) => void;
+    onItemArchived?: (item: any) => void;
+    onItemUnarchived?: (item: any) => void;
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [archiving, setArchiving] = useState(false);
+    const [unarchiving, setUnarchiving] = useState(false);
 
     // For account items, use AccountDialog
     if (item?.type === 'account') {
-        return <AccountDialog 
-            open={open} 
-            onOpenChange={onOpenChange} 
-            item={item} 
-            onItemUpdated={onItemUpdated} 
-            onItemDeleted={onItemDeleted} 
+        return <AccountDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            item={item}
+            onItemUpdated={onItemUpdated}
+            onItemDeleted={onItemDeleted}
+            onItemArchived={onItemArchived}
+            onItemUnarchived={onItemUnarchived}
         />;
     }
 
@@ -65,6 +71,40 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
         }
     }
 
+    async function handleArchive() {
+        if (!onItemArchived) return;
+
+        setArchiving(true);
+        const toastId = showToast.loading('Archiving item...');
+        try {
+            const archived = await archiveItem(item._id);
+            onItemArchived(archived);
+            showToast.update(toastId, 'Item archived successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to archive item', 'error');
+        } finally {
+            setArchiving(false);
+            onOpenChange(false);
+        }
+    }
+
+    async function handleUnarchive() {
+        if (!onItemUnarchived) return;
+
+        setUnarchiving(true);
+        const toastId = showToast.loading('Unarchiving item...');
+        try {
+            const unarchived = await unarchiveItem(item._id);
+            onItemUnarchived(unarchived);
+            showToast.update(toastId, 'Item unarchived successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to unarchive item', 'error');
+        } finally {
+            setUnarchiving(false);
+            onOpenChange(false);
+        }
+    }
+
     function handleCancel() {
         onOpenChange(false);
     }
@@ -93,13 +133,36 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                disabled={deleting}
+                                disabled={deleting || archiving || unarchiving}
                             >
                                 <MoreVertical className="h-4 w-4" />
                                 <span className="sr-only">More options</span>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            {item.archived ? (
+                                onItemUnarchived && (
+                                    <DropdownMenuItem
+                                        onSelect={handleUnarchive}
+                                        disabled={unarchiving}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Archive className="h-4 w-4" />
+                                        {unarchiving ? "Unarchiving..." : "Unarchive item"}
+                                    </DropdownMenuItem>
+                                )
+                            ) : (
+                                onItemArchived && (
+                                    <DropdownMenuItem
+                                        onSelect={handleArchive}
+                                        disabled={archiving}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Archive className="h-4 w-4" />
+                                        {archiving ? "Archiving..." : "Archive item"}
+                                    </DropdownMenuItem>
+                                )
+                            )}
                             <DropdownMenuItem
                                 onSelect={handleDelete}
                                 disabled={deleting}
@@ -110,7 +173,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    
+
                     {/* Close button */}
                     <Button
                         variant="ghost"
@@ -130,7 +193,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
                         Edit the details of your item and save changes.
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 {form}
             </DialogContent>
         </Dialog>

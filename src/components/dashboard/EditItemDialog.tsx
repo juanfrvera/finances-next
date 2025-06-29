@@ -2,9 +2,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
 import { useState } from "react";
-import { updateItemToDb, deleteItemFromDb } from "@/app/actions";
+import { updateItemToDb, deleteItemFromDb, archiveItem } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, X, Trash2 } from "lucide-react";
+import { MoreVertical, X, Trash2, Archive } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,15 +13,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
-export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted }: {
+export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
     onItemUpdated: (item: any) => void;
     onItemDeleted: (id: string) => void;
+    onItemArchived?: (item: any) => void;
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [archiving, setArchiving] = useState(false);
 
     async function handleSave(data: any) {
         setLoading(true);
@@ -51,6 +53,22 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
             onOpenChange(false);
         }
     }
+    async function handleArchive() {
+        if (!onItemArchived) return;
+
+        setArchiving(true);
+        const toastId = showToast.loading('Archiving item...');
+        try {
+            const archived = await archiveItem(item._id);
+            onItemArchived(archived);
+            showToast.update(toastId, 'Item archived successfully!', 'success');
+        } catch (error) {
+            showToast.update(toastId, 'Failed to archive item', 'error');
+        } finally {
+            setArchiving(false);
+            onOpenChange(false);
+        }
+    }
     function handleCancel() {
         onOpenChange(false);
     }
@@ -77,13 +95,22 @@ export default function EditItemDialog({ open, onOpenChange, item, onItemUpdated
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                disabled={deleting}
+                                disabled={deleting || archiving}
                             >
                                 <MoreVertical className="h-4 w-4" />
                                 <span className="sr-only">More options</span>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            {onItemArchived && (
+                                <DropdownMenuItem
+                                    onClick={handleArchive}
+                                    disabled={archiving}
+                                >
+                                    <Archive className="h-4 w-4" />
+                                    {archiving ? "Archiving..." : "Archive item"}
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                                 variant="destructive"
                                 onClick={handleDelete}

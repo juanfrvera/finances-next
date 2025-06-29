@@ -46,9 +46,9 @@ export async function updateItemToDb(item: any) {
 export async function deleteItemFromDb(id: string) {
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
-    
+
     await db.collection("items").deleteOne({ _id, userId: process.env.TEST_USER_ID });
-    
+
     return true;
 }
 
@@ -145,7 +145,7 @@ export async function createTransaction(itemId: string, amount: number, note?: s
 export async function getTransactions(itemId: string): Promise<Transaction[]> {
     if (!itemId) throw new Error("Missing itemId for transactions");
     const db = await getDb();
-    
+
     // First verify that the item belongs to the current user
     const itemObjectId = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
     const item = await db.collection("items").findOne({ _id: itemObjectId, userId: process.env.TEST_USER_ID });
@@ -173,7 +173,7 @@ export async function deleteTransaction(transactionId: string): Promise<boolean>
     // Get the transaction to reverse its amount
     const transaction = await db.collection("transactions").findOne({ _id }) as { _id: ObjectId; itemId: string; amount: number; note: string; date: string } | null;
     if (!transaction) throw new Error("Transaction not found");
-    
+
     // Verify that the transaction's item belongs to the current user
     const transactionItemObjectId = typeof transaction.itemId === "string" ? ObjectId.createFromHexString(transaction.itemId) : transaction.itemId;
     const item = await db.collection("items").findOne({ _id: transactionItemObjectId, userId: process.env.TEST_USER_ID });
@@ -213,32 +213,32 @@ interface CurrencyEvolutionDataPoint {
 // Helper function to get currency evolution data (not cached)
 async function getCurrencyEvolutionDataInternal(currency: string): Promise<CurrencyEvolutionDataPoint[]> {
     const db = await getDb();
-    
+
     // Get all accounts for this currency
     const accounts = await db.collection("items")
         .find({ type: "account", currency: currency, userId: process.env.TEST_USER_ID })
         .toArray();
-    
+
     if (accounts.length === 0) {
         return [];
     }
-    
+
     // Get all transactions for these accounts
     const accountIds = accounts.map(acc => acc._id.toString());
     const transactions = await db.collection("transactions")
         .find({ itemId: { $in: accountIds } })
         .sort({ date: 1 }) // Oldest first for calculations
         .toArray();
-    
+
     // Build evolution data
     const evolutionData: CurrencyEvolutionDataPoint[] = [];
     const accountBalances = new Map<string, number>();
-    
+
     // Initialize account balances to 0
     accounts.forEach(acc => {
         accountBalances.set(acc._id.toString(), 0);
     });
-    
+
     // Group transactions by date
     const transactionsByDate = new Map<string, any[]>();
     transactions.forEach(transaction => {
@@ -248,21 +248,21 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
         }
         transactionsByDate.get(dateKey)!.push(transaction);
     });
-    
+
     // Process transactions chronologically
-    const sortedDates = Array.from(transactionsByDate.keys()).sort((a, b) => 
+    const sortedDates = Array.from(transactionsByDate.keys()).sort((a, b) =>
         new Date(a).getTime() - new Date(b).getTime()
     );
-    
+
     sortedDates.forEach(dateKey => {
         const dayTransactions = transactionsByDate.get(dateKey)!;
-        
+
         // Apply all transactions for this day
         dayTransactions.forEach(transaction => {
             const currentBalance = accountBalances.get(transaction.itemId) || 0;
             accountBalances.set(transaction.itemId, currentBalance + transaction.amount);
         });
-        
+
         // Calculate total value and get top 3 accounts
         const accountEntries = Array.from(accountBalances.entries())
             .map(([accountId, balance]) => {
@@ -274,20 +274,20 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
             })
             .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
             .slice(0, 3);
-        
+
         const totalValue = Array.from(accountBalances.values()).reduce((sum, balance) => sum + balance, 0);
-        
+
         evolutionData.push({
             date: new Date(dateKey).toISOString().split('T')[0], // YYYY-MM-DD format
             value: Math.round(totalValue * 100) / 100, // Round to 2 decimals
             topAccounts: accountEntries
         });
     });
-    
+
     // Always add current date as the last data point to show current state
     const today = new Date().toISOString().split('T')[0];
     const lastDataPoint = evolutionData[evolutionData.length - 1];
-    
+
     // Only add today's data point if it's not already the last one
     if (!lastDataPoint || lastDataPoint.date !== today) {
         // Use actual current balances from the database instead of calculated balances
@@ -298,16 +298,16 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
             }))
             .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
             .slice(0, 3);
-        
+
         const currentTotalValue = accounts.reduce((sum, account) => sum + (account.balance || 0), 0);
-        
+
         evolutionData.push({
             date: today,
             value: Math.round(currentTotalValue * 100) / 100, // Round to 2 decimals
             topAccounts: currentAccountEntries
         });
     }
-    
+
     // Limit to last 30 data points for performance
     return evolutionData.slice(-30);
 }
@@ -315,4 +315,46 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
 // Get currency evolution data (no server-side caching)
 export async function getCurrencyEvolutionData(currency: string): Promise<CurrencyEvolutionDataPoint[]> {
     return getCurrencyEvolutionDataInternal(currency);
+}
+
+export async function archiveItem(id: string) {
+    const db = await getDb();
+    const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
+    const editDate = new Date().toISOString();
+
+    await db.collection("items").updateOne(
+        { _id, userId: process.env.TEST_USER_ID },
+        { $set: { archived: true, editDate } }
+    );
+
+    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    if (!updated) return null;
+
+    return {
+        ...updated,
+        _id: updated._id?.toString?.() ?? undefined,
+        createDate: updated.createDate ? new Date(updated.createDate).toISOString() : undefined,
+        editDate: updated.editDate ? new Date(updated.editDate).toISOString() : undefined,
+    };
+}
+
+export async function unarchiveItem(id: string) {
+    const db = await getDb();
+    const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
+    const editDate = new Date().toISOString();
+
+    await db.collection("items").updateOne(
+        { _id, userId: process.env.TEST_USER_ID },
+        { $set: { archived: false, editDate } }
+    );
+
+    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    if (!updated) return null;
+
+    return {
+        ...updated,
+        _id: updated._id?.toString?.() ?? undefined,
+        createDate: updated.createDate ? new Date(updated.createDate).toISOString() : undefined,
+        editDate: updated.editDate ? new Date(updated.editDate).toISOString() : undefined,
+    };
 }
