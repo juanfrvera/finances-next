@@ -3,7 +3,7 @@ import DashboardClient from "@/components/dashboard/DashboardClient";
 
 export default async function Dashboard() {
   const db = await getDb();
-  const items = await db.collection("items").find().toArray();
+  const items = await db.collection("items").find({userId: process.env.TEST_USER_ID}).toArray();
   // Convert to plain objects and _id to string, ensure createDate/editDate are strings
   const plainItems = items.map((item: any) => ({
     ...item,

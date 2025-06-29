@@ -8,11 +8,12 @@ export async function addItemToDb(item: any) {
     const db = await getDb();
     const result = await db.collection("items").insertOne({
         ...item,
+        userId: process.env.TEST_USER_ID,
         createDate: now,
         editDate: now,
     });
     // Fetch the inserted item with all fields
-    const inserted = await db.collection("items").findOne({ _id: result.insertedId });
+    const inserted = await db.collection("items").findOne({ _id: result.insertedId, userId: process.env.TEST_USER_ID });
     if (!inserted) return null;
     // Convert _id and dates to string
     return {
@@ -30,8 +31,8 @@ export async function updateItemToDb(item: any) {
     const editDate = new Date().toISOString();
     // Exclude _id from the update payload to avoid attempting to overwrite it
     const { _id: _, ...updateFields } = item;
-    await db.collection("items").updateOne({ _id }, { $set: { ...updateFields, editDate } });
-    const updated = await db.collection("items").findOne({ _id });
+    await db.collection("items").updateOne({ _id, userId: process.env.TEST_USER_ID }, { $set: { ...updateFields, editDate } });
+    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
     if (!updated) return null;
 
     return {
@@ -46,7 +47,7 @@ export async function deleteItemFromDb(id: string) {
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
     
-    await db.collection("items").deleteOne({ _id });
+    await db.collection("items").deleteOne({ _id, userId: process.env.TEST_USER_ID });
     
     return true;
 }
@@ -58,7 +59,7 @@ export async function updateAccountBalance(itemId: string, newBalance: number, n
     const editDate = new Date().toISOString();
 
     // Get the current account to calculate the difference
-    const currentAccount = await db.collection("items").findOne({ _id });
+    const currentAccount = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
     if (!currentAccount) throw new Error("Account not found");
 
     const currentBalance = currentAccount.balance || 0;
@@ -76,7 +77,7 @@ export async function updateAccountBalance(itemId: string, newBalance: number, n
 
     // Update the balance and editDate
     await db.collection("items").updateOne(
-        { _id },
+        { _id, userId: process.env.TEST_USER_ID },
         {
             $set: {
                 balance: newBalance,
@@ -85,7 +86,7 @@ export async function updateAccountBalance(itemId: string, newBalance: number, n
         }
     );
 
-    const updated = await db.collection("items").findOne({ _id });
+    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
     if (!updated) return null;
 
     return {
@@ -113,14 +114,14 @@ export async function createTransaction(itemId: string, amount: number, note?: s
     });
 
     // Update the account balance
-    const account = await db.collection("items").findOne({ _id: itemObjectId });
+    const account = await db.collection("items").findOne({ _id: itemObjectId, userId: process.env.TEST_USER_ID });
     if (!account) throw new Error("Account not found");
 
     const newBalance = (account.balance || 0) + amount;
 
     // Update account balance and editDate
     await db.collection("items").updateOne(
-        { _id: itemObjectId },
+        { _id: itemObjectId, userId: process.env.TEST_USER_ID },
         {
             $set: {
                 balance: newBalance,
@@ -144,6 +145,11 @@ export async function createTransaction(itemId: string, amount: number, note?: s
 export async function getTransactions(itemId: string): Promise<Transaction[]> {
     if (!itemId) throw new Error("Missing itemId for transactions");
     const db = await getDb();
+    
+    // First verify that the item belongs to the current user
+    const itemObjectId = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
+    const item = await db.collection("items").findOne({ _id: itemObjectId, userId: process.env.TEST_USER_ID });
+    if (!item) throw new Error("Item not found or access denied");
 
     const transactions = await db.collection("transactions")
         .find({ itemId: itemId }) // Query by string itemId instead of ObjectId
@@ -167,20 +173,25 @@ export async function deleteTransaction(transactionId: string): Promise<boolean>
     // Get the transaction to reverse its amount
     const transaction = await db.collection("transactions").findOne({ _id }) as { _id: ObjectId; itemId: string; amount: number; note: string; date: string } | null;
     if (!transaction) throw new Error("Transaction not found");
+    
+    // Verify that the transaction's item belongs to the current user
+    const transactionItemObjectId = typeof transaction.itemId === "string" ? ObjectId.createFromHexString(transaction.itemId) : transaction.itemId;
+    const item = await db.collection("items").findOne({ _id: transactionItemObjectId, userId: process.env.TEST_USER_ID });
+    if (!item) throw new Error("Transaction not found or access denied");
 
     // Delete the transaction
     await db.collection("transactions").deleteOne({ _id });
 
     // Update account balance by reversing the transaction
     const itemObjectId = typeof transaction.itemId === "string" ? ObjectId.createFromHexString(transaction.itemId) : transaction.itemId;
-    const account = await db.collection("items").findOne({ _id: itemObjectId });
+    const account = await db.collection("items").findOne({ _id: itemObjectId, userId: process.env.TEST_USER_ID });
     if (!account) throw new Error("Account not found");
 
     const newBalance = (account.balance || 0) - transaction.amount;
     const editDate = new Date().toISOString();
 
     await db.collection("items").updateOne(
-        { _id: itemObjectId },
+        { _id: itemObjectId, userId: process.env.TEST_USER_ID },
         {
             $set: {
                 balance: newBalance,
@@ -205,7 +216,7 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
     
     // Get all accounts for this currency
     const accounts = await db.collection("items")
-        .find({ type: "account", currency: currency })
+        .find({ type: "account", currency: currency, userId: process.env.TEST_USER_ID })
         .toArray();
     
     if (accounts.length === 0) {
