@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import DashboardClient from "@/components/dashboard/DashboardClient";
+import { getDebtPaymentStatus } from "./actions";
 
 export default async function Dashboard() {
   const db = await getDb();
@@ -18,7 +19,7 @@ export default async function Dashboard() {
 
   // Calculate currency values and account breakdowns (only for active items)
   const accountItems = activeItems.filter((item) => item.type === "account");
-  const mappedItems = activeItems.map((item) => {
+  const mappedItems = await Promise.all(activeItems.map(async (item) => {
     if (item.type === "currency") {
       const accounts = accountItems.filter((acc) => acc.currency === item.currency);
       const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
@@ -30,9 +31,32 @@ export default async function Dashboard() {
         }))
         .sort((a, b) => b.balance - a.balance); // Sort by balance descending (highest first)
       return { ...item, value: sum, accountBreakdown };
+    } else if (item.type === "debt") {
+      // Fetch payment status for debt items
+      try {
+        const paymentStatus = await getDebtPaymentStatus(item._id);
+        return { ...item, ...paymentStatus };
+      } catch (error) {
+        console.warn(`Failed to get payment status for debt ${item._id}:`, error);
+        return item;
+      }
     }
     return item;
-  });
+  }));
+
+  // Also add payment status to archived debt items
+  const mappedArchivedItems = await Promise.all(archivedItems.map(async (item) => {
+    if (item.type === "debt") {
+      try {
+        const paymentStatus = await getDebtPaymentStatus(item._id);
+        return { ...item, ...paymentStatus };
+      } catch (error) {
+        console.warn(`Failed to get payment status for archived debt ${item._id}:`, error);
+        return item;
+      }
+    }
+    return item;
+  }));
 
   const hasItems = mappedItems.length > 0;
 
@@ -44,7 +68,7 @@ export default async function Dashboard() {
           <p className="text-gray-600 mb-4">Get started by creating your first item!</p>
         </div>
       )}
-      <DashboardClient items={mappedItems} archivedItems={archivedItems} />
+      <DashboardClient items={mappedItems} archivedItems={mappedArchivedItems} />
     </div>
   );
 }

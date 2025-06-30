@@ -1,7 +1,8 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ServiceForm, DebtForm, CurrencyForm } from "./ItemForms";
+import { ServiceForm, CurrencyForm } from "./ItemForms";
 import AccountDialog from "./AccountDialog";
+import DebtDialog from "./DebtDialog";
 import { useState } from "react";
 import { updateItemToDb, deleteItemFromDb, archiveItem, unarchiveItem } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,19 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     // For account items, use AccountDialog
     if (item?.type === 'account') {
         return <AccountDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            item={item}
+            onItemUpdated={onItemUpdated}
+            onItemDeleted={onItemDeleted}
+            onItemArchived={onItemArchived}
+            onItemUnarchived={onItemUnarchived}
+        />;
+    }
+
+    // For debt items, use DebtDialog
+    if (item?.type === 'debt') {
+        return <DebtDialog
             open={open}
             onOpenChange={onOpenChange}
             item={item}
@@ -115,8 +129,6 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     let form: React.ReactNode = null;
     if (item.type === 'service') {
         form = <ServiceForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
-    } else if (item.type === 'debt') {
-        form = <DebtForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     } else if (item.type === 'currency') {
         form = <CurrencyForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
     }

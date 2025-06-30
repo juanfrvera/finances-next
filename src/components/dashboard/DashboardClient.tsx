@@ -424,10 +424,10 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
                             <button
                                 key={tab.id}
                                 className={`p-1.5 rounded hover:bg-accent focus:outline-none transition-colors cursor-pointer ${isActive
-                                        ? 'bg-primary text-primary-foreground'
-                                        : tab.disabled
-                                            ? 'text-muted-foreground/50 cursor-not-allowed'
-                                            : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : tab.disabled
+                                        ? 'text-muted-foreground/50 cursor-not-allowed'
+                                        : 'text-muted-foreground hover:text-foreground'
                                     }`}
                                 aria-label={tab.label}
                                 onClick={e => {
@@ -497,10 +497,30 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
 }
 
 function Debt({ data, showJson }: any) {
+    // Determine payment status display
+    const getPaymentStatusInfo = () => {
+        if (!data.paymentStatus) {
+            return { text: 'Status unknown', color: 'text-muted-foreground' };
+        }
+
+        switch (data.paymentStatus) {
+            case 'paid':
+                return { text: 'Fully paid', color: 'text-green-600 dark:text-green-400' };
+            case 'partially_paid':
+                return { text: 'Partially paid', color: 'text-yellow-600 dark:text-yellow-400' };
+            case 'unpaid':
+                return { text: 'Unpaid', color: 'text-red-600 dark:text-red-400' };
+            default:
+                return { text: 'Status unknown', color: 'text-muted-foreground' };
+        }
+    };
+
+    const statusInfo = getPaymentStatusInfo();
+
     return (
         <div className="flex flex-col items-center justify-center text-center p-4 h-full">
             <div className="text-base mb-2">{data.description}</div>
-            <div className="text-lg font-semibold">
+            <div className="text-lg font-semibold mb-2">
                 {data.theyPayMe ? (
                     <>
                         {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
@@ -511,6 +531,27 @@ function Debt({ data, showJson }: any) {
                     </>
                 )}
             </div>
+
+            {/* Payment status indicator */}
+            <div className={`text-sm font-medium ${statusInfo.color}`}>
+                {statusInfo.text}
+            </div>
+
+            {/* Payment details */}
+            {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                <div className="text-xs text-muted-foreground mt-1">
+                    {data.totalPaid !== undefined && (
+                        <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
+                    )}
+                    {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
+                        <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
+                    )}
+                    {data.transactionCount !== undefined && data.transactionCount > 0 && (
+                        <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+                    )}
+                </div>
+            )}
+
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );

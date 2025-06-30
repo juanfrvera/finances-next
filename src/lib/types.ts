@@ -31,12 +31,19 @@ export type Service = {
 
 export type Debt = {
     _id: string;
-    name: string;
+    description: string;
+    withWho: string;
     amount: number;
     currency: string;
+    theyPayMe: boolean;
     type: 'debt';
     createDate: string;
     editDate: string;
+    // Payment status fields (calculated from transactions)
+    paymentStatus?: 'paid' | 'partially_paid' | 'unpaid';
+    totalPaid?: number;
+    remainingAmount?: number;
+    transactionCount?: number;
 };
 
 export type Currency = {

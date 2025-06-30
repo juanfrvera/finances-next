@@ -580,3 +580,85 @@ export function TransactionForm({ initial, loading, onSubmit, onCancel }: {
         </form>
     );
 }
+
+export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCancel }: {
+    debtAmount: number;
+    currency: string;
+    loading: boolean;
+    onSubmit: (data: { amount: number; note: string }) => void;
+    onCancel?: () => void;
+}) {
+    const [form, setForm] = useState({
+        amount: '',
+        note: '',
+    });
+
+    const isValid = form.amount && Number(form.amount) > 0;
+
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!isValid) return;
+        
+        onSubmit({
+            amount: Number(form.amount),
+            note: form.note || "Debt payment",
+        });
+    }
+
+    function setFullAmount() {
+        setForm(f => ({ ...f, amount: debtAmount.toString() }));
+    }
+
+    return (
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="payment-amount">Payment Amount ({currency})</Label>
+                <div className="flex gap-2">
+                    <Input 
+                        id="payment-amount" 
+                        name="amount" 
+                        placeholder="0.00" 
+                        type="number" 
+                        step="0.01"
+                        required 
+                        value={form.amount} 
+                        onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} 
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={setFullAmount}
+                        className="whitespace-nowrap"
+                    >
+                        Full Amount
+                    </Button>
+                </div>
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="payment-note">Note (optional)</Label>
+                <Input 
+                    id="payment-note" 
+                    name="note" 
+                    placeholder="Payment description..." 
+                    value={form.note} 
+                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))} 
+                />
+            </div>
+            <div className="flex gap-2 mt-2">
+                <Button 
+                    type="submit" 
+                    className="flex-1" 
+                    disabled={!isValid || loading}
+                >
+                    {loading && <Spinner />} {loading ? "Recording..." : "Record Payment"}
+                </Button>
+                {onCancel && (
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
+                        Cancel
+                    </Button>
+                )}
+            </div>
+        </form>
+    );
+}

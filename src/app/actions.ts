@@ -358,3 +358,87 @@ export async function unarchiveItem(id: string) {
         editDate: updated.editDate ? new Date(updated.editDate).toISOString() : undefined,
     };
 }
+
+export async function getDebtPaymentStatus(itemId: string): Promise<{
+    totalPaid: number;
+    remainingAmount: number;
+    paymentStatus: 'paid' | 'partially_paid' | 'unpaid';
+    transactionCount: number;
+}> {
+    if (!itemId) throw new Error("Missing itemId for debt payment status");
+    const db = await getDb();
+
+    // First verify that the item is a debt and belongs to the current user
+    const itemObjectId = typeof itemId === "string" ? ObjectId.createFromHexString(itemId) : itemId;
+    const item = await db.collection("items").findOne({ _id: itemObjectId, userId: process.env.TEST_USER_ID, type: 'debt' });
+    if (!item) throw new Error("Debt item not found or access denied");
+
+    const debtAmount = item.amount || 0;
+
+    // Get all transactions for this debt item
+    const transactions = await db.collection("transactions")
+        .find({ itemId: itemId }) // Query by string itemId
+        .toArray() as Array<{ _id: ObjectId; itemId: string; amount: number; note: string; date: string }>;
+
+    // Calculate total payments (sum of all transaction amounts)
+    const totalPaid = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+    const remainingAmount = debtAmount - totalPaid;
+
+    // Determine payment status
+    let paymentStatus: 'paid' | 'partially_paid' | 'unpaid';
+    if (totalPaid <= 0) {
+        paymentStatus = 'unpaid';
+    } else if (remainingAmount <= 0) {
+        paymentStatus = 'paid';
+    } else {
+        paymentStatus = 'partially_paid';
+    }
+
+    return {
+        totalPaid,
+        remainingAmount: Math.max(0, remainingAmount), // Don't show negative remaining
+        paymentStatus,
+        transactionCount: transactions.length,
+    };
+}
+
+export async function createDebtPayment(debtId: string, amount: number, note?: string): Promise<{ _id: string; itemId: string; amount: number; note: string; date: string }> {
+    if (!debtId) throw new Error("Missing debtId for payment");
+    const db = await getDb();
+    const now = new Date().toISOString();
+
+    const debtObjectId = typeof debtId === "string" ? ObjectId.createFromHexString(debtId) : debtId;
+
+    // Verify that the item is a debt and belongs to the current user
+    const debt = await db.collection("items").findOne({ _id: debtObjectId, userId: process.env.TEST_USER_ID, type: 'debt' });
+    if (!debt) throw new Error("Debt item not found or access denied");
+
+    // Insert the payment transaction
+    const result = await db.collection("transactions").insertOne({
+        itemId: debtId, // Store as string
+        amount: amount,
+        note: note || "Debt payment",
+        date: now,
+    });
+
+    // Update the debt's editDate to reflect the payment
+    await db.collection("items").updateOne(
+        { _id: debtObjectId, userId: process.env.TEST_USER_ID },
+        {
+            $set: {
+                editDate: now
+            }
+        }
+    );
+
+    const inserted = await db.collection("transactions").findOne({ _id: result.insertedId }) as { _id: ObjectId; itemId: string; amount: number; note: string; date: string } | null;
+    if (!inserted) throw new Error("Failed to retrieve inserted payment transaction");
+
+    return {
+        _id: inserted._id.toString(),
+        itemId: inserted.itemId,
+        amount: inserted.amount,
+        note: inserted.note,
+        date: inserted.date,
+    };
+}
