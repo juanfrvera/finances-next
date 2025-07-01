@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, List } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, List, Users, UserX } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
@@ -48,6 +48,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
+    const [groupedDebts, setGroupedDebts] = useState<Set<string>>(new Set()); // Track grouped debt keys
 
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
@@ -203,9 +204,108 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         });
     }, []);
 
+    // Helper function to create a grouping key for debts
+    const getDebtGroupKey = (debt: any) => {
+        return `${debt.withWho}:${debt.theyPayMe}`;
+    };
+
+    // Helper function to check if debts can be grouped
+    const canGroupDebts = (debts: any[]) => {
+        const debtGroups = new Map<string, any[]>();
+
+        debts.filter(item => item.type === 'debt').forEach(debt => {
+            const groupKey = getDebtGroupKey(debt);
+            if (!debtGroups.has(groupKey)) {
+                debtGroups.set(groupKey, []);
+            }
+            debtGroups.get(groupKey)!.push(debt);
+        });
+
+        return debtGroups;
+    };
+
+    // Helper function to create grouped debt item
+    const createGroupedDebt = (debts: any[], groupKey: string) => {
+        const [withWho, theyPayMe] = groupKey.split(':');
+        const totalAmount = debts.reduce((sum, debt) => sum + (debt.amount || 0), 0);
+        const totalPaid = debts.reduce((sum, debt) => sum + (debt.totalPaid || 0), 0);
+        const remainingAmount = totalAmount - totalPaid;
+        const currency = debts[0]?.currency || 'USD';
+        const transactionCount = debts.reduce((sum, debt) => sum + (debt.transactionCount || 0), 0);
+
+        // Determine payment status
+        let paymentStatus = 'unpaid';
+        if (remainingAmount <= 0) {
+            paymentStatus = 'paid';
+        } else if (totalPaid > 0) {
+            paymentStatus = 'partially_paid';
+        }
+
+        return {
+            _id: `grouped-${groupKey}`,
+            type: 'debt',
+            withWho,
+            theyPayMe: theyPayMe === 'true',
+            amount: totalAmount,
+            totalPaid,
+            remainingAmount,
+            currency,
+            paymentStatus,
+            transactionCount,
+            description: `${debts.length} debts grouped`,
+            name: `Grouped: ${withWho}`,
+            isGrouped: true,
+            groupedItems: debts,
+            editDate: Math.max(...debts.map(d => new Date(d.editDate || 0).getTime()))
+        };
+    };
+
+    // Helper function to process items with grouping
+    const processItemsWithGrouping = (items: any[]) => {
+        const debtGroups = canGroupDebts(items);
+        const processedItems: any[] = [];
+        const usedDebtIds = new Set<string>();
+
+        // Add grouped debts
+        debtGroups.forEach((debts, groupKey) => {
+            const isGrouped = groupedDebts.has(groupKey);
+
+            if (isGrouped && debts.length >= 2) {
+                // Show as grouped
+                processedItems.push(createGroupedDebt(debts, groupKey));
+                debts.forEach(debt => usedDebtIds.add(debt._id));
+            } else {
+                // Show individually (not grouped or only one item)
+                debts.forEach(debt => processedItems.push(debt));
+                debts.forEach(debt => usedDebtIds.add(debt._id));
+            }
+        });
+
+        // Add non-debt items
+        items.filter(item => item.type !== 'debt').forEach(item => {
+            processedItems.push(item);
+        });
+
+        return processedItems;
+    };
+
+    // Function to toggle debt grouping
+    const toggleDebtGrouping = (groupKey: string) => {
+        setGroupedDebts(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(groupKey)) {
+                newSet.delete(groupKey);
+            } else {
+                newSet.add(groupKey);
+            }
+            return newSet;
+        });
+    };
+
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
     const itemsToDisplay = showArchived ? clientArchivedItems : clientItems;
-    const sortedItems = itemsToDisplay.slice().sort((a, b) => {
+    const processedItems = processItemsWithGrouping(itemsToDisplay);
+    const sortedItems = processedItems.slice().sort((a, b) => {
         const aHasDate = !!a.editDate;
         const bHasDate = !!b.editDate;
         if (!aHasDate && !bHasDate) return 0;
@@ -275,6 +375,11 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                                 isExpanded={isExpanded}
                                 onUpdateSize={(size: { width: number; height: number }) => updateCardSize(itemId, size)}
                                 onClick={() => { setSelectedItem(item); setEditDialogOpen(true); }}
+                                // Pass grouping functionality for debt items
+                                canGroupDebts={canGroupDebts}
+                                toggleDebtGrouping={toggleDebtGrouping}
+                                groupedDebts={groupedDebts}
+                                allItems={itemsToDisplay}
                             />
                         );
                     }
@@ -293,7 +398,18 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
 function ItemCard(props: any) {
     // Remove overflow-hidden so child content can overflow if needed
-    const { showJson, cardSize, onUpdateSize, isExpanded, onClick, ...rest } = props;
+    const {
+        showJson,
+        cardSize,
+        onUpdateSize,
+        isExpanded,
+        onClick,
+        canGroupDebts,
+        toggleDebtGrouping,
+        groupedDebts,
+        allItems,
+        ...rest
+    } = props;
 
     return (
         <Card
@@ -308,7 +424,7 @@ function ItemCard(props: any) {
                     height: '100%',
                 }),
             }}
-            onClick={onClick}
+            onClick={rest.type === 'debt' ? undefined : onClick} // Don't handle click for debt items at card level
         >
             {rest.archived && (
                 <div className="absolute top-2 right-2 z-10 bg-muted text-muted-foreground text-xs px-2 py-1 rounded">
@@ -317,7 +433,17 @@ function ItemCard(props: any) {
             )}
             {rest.type === 'account' && <Account data={rest} showJson={showJson} />}
             {rest.type === 'currency' && <Currency data={rest} showJson={showJson} onUpdateSize={onUpdateSize} />}
-            {rest.type === 'debt' && <Debt data={rest} showJson={showJson} />}
+            {rest.type === 'debt' && (
+                <Debt
+                    data={rest}
+                    showJson={showJson}
+                    canGroupDebts={canGroupDebts}
+                    toggleDebtGrouping={toggleDebtGrouping}
+                    groupedDebts={groupedDebts}
+                    allItems={allItems}
+                    onClick={onClick}
+                />
+            )}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
             {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
                 <div className="flex items-center justify-center p-4 w-full h-full">
@@ -512,7 +638,10 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     );
 }
 
-function Debt({ data, showJson }: any) {
+function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts, allItems, onClick }: any) {
+    // Helper function to create grouping key
+    const getDebtGroupKey = (debt: any) => `${debt.withWho}:${debt.theyPayMe}`;
+
     // Determine payment status display
     const getPaymentStatusInfo = () => {
         if (!data.paymentStatus) {
@@ -533,40 +662,153 @@ function Debt({ data, showJson }: any) {
 
     const statusInfo = getPaymentStatusInfo();
 
-    return (
-        <div className="flex flex-col items-center justify-center text-center p-4 h-full">
-            <div className="text-base mb-2">{data.description}</div>
-            <div className="text-lg font-semibold mb-2">
-                {data.theyPayMe ? (
-                    <>
-                        {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
-                    </>
-                ) : (
-                    <>
-                        You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
-                    </>
-                )}
-            </div>
+    // Handle click on the debt content (not the icons)
+    const handleDebtClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onClick && !data.isGrouped) {
+            onClick();
+        }
+    };
 
-            {/* Payment status indicator */}
-            <div className={`text-sm font-medium ${statusInfo.color}`}>
-                {statusInfo.text}
-            </div>
+    // Handle grouping/ungrouping
+    const handleGroupToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const groupKey = getDebtGroupKey(data);
+        if (toggleDebtGrouping) {
+            toggleDebtGrouping(groupKey);
+        }
+    };
 
-            {/* Payment details */}
-            {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
-                <div className="text-xs text-muted-foreground mt-1">
-                    {data.totalPaid !== undefined && (
-                        <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
-                    )}
-                    {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
-                        <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
-                    )}
-                    {data.transactionCount !== undefined && data.transactionCount > 0 && (
-                        <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+    // Check if this debt can be grouped with others
+    const canBeGrouped = () => {
+        if (!canGroupDebts || !allItems) return false;
+
+        const debtGroups = canGroupDebts(allItems);
+        const groupKey = getDebtGroupKey(data);
+        const groupItems = debtGroups.get(groupKey) || [];
+
+        return groupItems.length >= 2;
+    };
+
+    // Check if this debt is currently grouped
+    const isCurrentlyGrouped = () => {
+        if (!groupedDebts) return false;
+        const groupKey = getDebtGroupKey(data);
+        return groupedDebts.has(groupKey);
+    };
+
+    const showGroupIcon = canBeGrouped();
+    const isGrouped = isCurrentlyGrouped();
+
+    // Handle grouped debt display
+    if (data.isGrouped) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center p-4 h-full relative">
+                {/* Ungroup icon */}
+                <button
+                    onClick={handleGroupToggle}
+                    className="absolute top-2 right-2 p-1 rounded-full hover:bg-accent transition-colors"
+                    title="Ungroup debts"
+                >
+                    <UserX className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+
+                <div className="text-base mb-2">{data.description}</div>
+                <div className="text-lg font-semibold mb-2">
+                    {data.theyPayMe ? (
+                        <>
+                            {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
+                        </>
+                    ) : (
+                        <>
+                            You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
+                        </>
                     )}
                 </div>
+
+                {/* Payment status indicator */}
+                <div className={`text-sm font-medium ${statusInfo.color}`}>
+                    {statusInfo.text}
+                </div>
+
+                {/* Group details */}
+                <div className="text-xs text-muted-foreground mt-1">
+                    <div>{data.groupedItems?.length || 0} debts grouped</div>
+                    {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                        <>
+                            {data.totalPaid !== undefined && (
+                                <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
+                            )}
+                            {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
+                                <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
+                            )}
+                            {data.transactionCount !== undefined && data.transactionCount > 0 && (
+                                <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+            </div>
+        );
+    }
+
+    // Regular debt display
+    return (
+        <div className="flex flex-col items-center justify-center text-center p-4 h-full relative">
+            {/* Group/ungroup icon */}
+            {showGroupIcon && (
+                <button
+                    onClick={handleGroupToggle}
+                    className="absolute top-2 right-2 p-1 rounded-full hover:bg-accent transition-colors"
+                    title={isGrouped ? "Ungroup debts" : "Group similar debts"}
+                >
+                    {isGrouped ? (
+                        <UserX className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                    ) : (
+                        <Users className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                    )}
+                </button>
             )}
+
+            <div
+                className="cursor-pointer w-full h-full flex flex-col items-center justify-center"
+                onClick={handleDebtClick}
+            >
+                <div className="text-base mb-2">{data.description}</div>
+                <div className="text-lg font-semibold mb-2">
+                    {data.theyPayMe ? (
+                        <>
+                            {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
+                        </>
+                    ) : (
+                        <>
+                            You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
+                        </>
+                    )}
+                </div>
+
+                {/* Payment status indicator */}
+                <div className={`text-sm font-medium ${statusInfo.color}`}>
+                    {statusInfo.text}
+                </div>
+
+                {/* Payment details */}
+                {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                        {data.totalPaid !== undefined && (
+                            <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
+                        )}
+                        {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
+                            <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
+                        )}
+                        {data.transactionCount !== undefined && data.transactionCount > 0 && (
+                            <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
