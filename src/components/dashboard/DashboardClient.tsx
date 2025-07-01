@@ -9,6 +9,7 @@ import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 import { CurrencyTabStorage, type CurrencyTab } from "@/lib/currency-tab-storage";
+import { DebtGroupingStorage } from "@/lib/debt-grouping-storage";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
@@ -49,6 +50,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
     const [groupedDebts, setGroupedDebts] = useState<Set<string>>(new Set()); // Track grouped debt keys
+    const [isGroupingHydrated, setIsGroupingHydrated] = useState(false); // Track if grouping state is loaded
 
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
@@ -75,6 +77,33 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
             CurrencyTabStorage.cleanup(existingCurrencies);
         }
     }, [clientItems]); // Run when items change
+
+    // Load debt grouping state from localStorage after hydration
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedGroupingState = DebtGroupingStorage.loadState();
+            setGroupedDebts(savedGroupingState);
+            setIsGroupingHydrated(true);
+        }
+    }, []); // Load once after hydration
+
+    // Clean up localStorage entries for debt groups that no longer exist
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isGroupingHydrated) {
+            // Get current debt items
+            const currentDebtItems = clientItems.filter(item => item.type === 'debt');
+
+            // Clean up invalid grouping keys
+            DebtGroupingStorage.cleanup(currentDebtItems);
+        }
+    }, [clientItems, isGroupingHydrated]); // Run when items change and after hydration
+
+    // Save grouping state to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isGroupingHydrated) {
+            DebtGroupingStorage.saveState(groupedDebts);
+        }
+    }, [groupedDebts, isGroupingHydrated]); // Save whenever grouping state changes
 
     // Helper function to recalculate currency values based on account items
     function recalculateCurrencyValues(items: any[]) {
