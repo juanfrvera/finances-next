@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
+import GroupedDebtDialog from "./GroupedDebtDialog";
 import { Card } from "@/components/ui/card";
 import { PieChart as PieChartIcon, BarChart3, List, Users, UserX } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
@@ -47,6 +48,8 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     const [sortDesc, setSortDesc] = useState(true); // true = most recent first
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [groupedDebtDialogOpen, setGroupedDebtDialogOpen] = useState(false);
+    const [selectedGroupedDebt, setSelectedGroupedDebt] = useState<any | null>(null);
     const [showJson, setShowJson] = useState(false); // NEW: toggle for JSON.stringify
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
     const [groupedDebts, setGroupedDebts] = useState<Set<string>>(new Set()); // Track grouped debt keys
@@ -356,6 +359,15 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                 onItemArchived={handleItemArchived}
                 onItemUnarchived={handleItemUnarchived}
             />
+            <GroupedDebtDialog
+                open={groupedDebtDialogOpen}
+                onOpenChange={setGroupedDebtDialogOpen}
+                groupedDebt={selectedGroupedDebt}
+                onDebtClick={(debt) => {
+                    setSelectedItem(debt);
+                    setEditDialogOpen(true);
+                }}
+            />
             <div className="flex justify-end mb-2 gap-2 items-center">
                 <button
                     className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
@@ -409,6 +421,10 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                                 toggleDebtGrouping={toggleDebtGrouping}
                                 groupedDebts={groupedDebts}
                                 allItems={itemsToDisplay}
+                                onGroupedDebtClick={(groupedDebt) => {
+                                    setSelectedGroupedDebt(groupedDebt);
+                                    setGroupedDebtDialogOpen(true);
+                                }}
                             />
                         );
                     }
@@ -437,6 +453,7 @@ function ItemCard(props: any) {
         toggleDebtGrouping,
         groupedDebts,
         allItems,
+        onGroupedDebtClick,
         ...rest
     } = props;
 
@@ -471,6 +488,7 @@ function ItemCard(props: any) {
                     groupedDebts={groupedDebts}
                     allItems={allItems}
                     onClick={onClick}
+                    onGroupedDebtClick={onGroupedDebtClick}
                 />
             )}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
@@ -667,7 +685,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
     );
 }
 
-function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts, allItems, onClick }: any) {
+function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts, allItems, onClick, onGroupedDebtClick }: any) {
     // Helper function to create grouping key
     const getDebtGroupKey = (debt: any) => `${debt.withWho}:${debt.theyPayMe}`;
 
@@ -694,7 +712,9 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
     // Handle click on the debt content (not the icons)
     const handleDebtClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (onClick && !data.isGrouped) {
+        if (data.isGrouped && onGroupedDebtClick) {
+            onGroupedDebtClick(data);
+        } else if (onClick && !data.isGrouped) {
             onClick();
         }
     };
@@ -742,40 +762,46 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                     <UserX className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                 </button>
 
-                <div className="text-base mb-2">{data.description}</div>
-                <div className="text-lg font-semibold mb-2">
-                    {data.theyPayMe ? (
-                        <>
-                            {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
-                        </>
-                    ) : (
-                        <>
-                            You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
-                        </>
-                    )}
-                </div>
+                {/* Clickable content */}
+                <div
+                    className="cursor-pointer w-full h-full flex flex-col items-center justify-center"
+                    onClick={handleDebtClick}
+                >
+                    <div className="text-base mb-2">{data.description}</div>
+                    <div className="text-lg font-semibold mb-2">
+                        {data.theyPayMe ? (
+                            <>
+                                {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
+                            </>
+                        ) : (
+                            <>
+                                You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
+                            </>
+                        )}
+                    </div>
 
-                {/* Payment status indicator */}
-                <div className={`text-sm font-medium ${statusInfo.color}`}>
-                    {statusInfo.text}
-                </div>
+                    {/* Payment status indicator */}
+                    <div className={`text-sm font-medium ${statusInfo.color}`}>
+                        {statusInfo.text}
+                    </div>
 
-                {/* Group details */}
-                <div className="text-xs text-muted-foreground mt-1">
-                    <div>{data.groupedItems?.length || 0} debts grouped</div>
-                    {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
-                        <>
-                            {data.totalPaid !== undefined && (
-                                <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
-                            )}
-                            {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
-                                <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
-                            )}
-                            {data.transactionCount !== undefined && data.transactionCount > 0 && (
-                                <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
-                            )}
-                        </>
-                    )}
+                    {/* Group details */}
+                    <div className="text-xs text-muted-foreground mt-1">
+                        <div>{data.groupedItems?.length || 0} debts grouped</div>
+                        {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                            <>
+                                {data.totalPaid !== undefined && (
+                                    <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
+                                )}
+                                {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
+                                    <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
+                                )}
+                                {data.transactionCount !== undefined && data.transactionCount > 0 && (
+                                    <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
