@@ -100,15 +100,19 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
             // If an account was created, recalculate currency values
             if (newItem.type === 'account') {
-                // Invalidate currency evolution cache for this specific currency
-                if (newItem.currency) {
-                    invalidateCurrency(newItem.currency);
-                }
                 return recalculateCurrencyValues(updatedItems);
             }
 
             return updatedItems;
         });
+
+        // Invalidate currency evolution cache after state update
+        if (newItem.type === 'account' && newItem.currency) {
+            // Use setTimeout to ensure this runs after the state update
+            setTimeout(() => {
+                invalidateCurrency(newItem.currency);
+            }, 0);
+        }
     }
     function handleItemUpdated(updated: any) {
         setClientItems((prev) => {
@@ -116,36 +120,44 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
             // If an account was updated, recalculate currency values
             if (updated.type === 'account') {
-                // Invalidate currency evolution cache for this specific currency
-                if (updated.currency) {
-                    invalidateCurrency(updated.currency);
-                }
                 return recalculateCurrencyValues(updatedItems);
             }
 
             return updatedItems;
         });
+
+        // Invalidate currency evolution cache after state update
+        if (updated.type === 'account' && updated.currency) {
+            // Use setTimeout to ensure this runs after the state update
+            setTimeout(() => {
+                invalidateCurrency(updated.currency);
+            }, 0);
+        }
     }
     function handleItemDeleted(id: string) {
+        // Find the deleted item to check if it was an account before deletion
+        const deletedItem = clientItems.find(i => i._id === id);
+        const shouldInvalidateCache = deletedItem && deletedItem.type === 'account' && deletedItem.currency;
+        const currencyToInvalidate = shouldInvalidateCache ? deletedItem.currency : null;
+
         setClientItems((prev) => {
             const filteredItems = prev.filter(i => i._id !== id);
 
-            // Find the deleted item to check if it was an account
-            const deletedItem = prev.find(i => i._id === id);
-
             if (deletedItem && deletedItem.type === 'account') {
-                // Invalidate currency evolution cache for this specific currency
-                if (deletedItem.currency) {
-                    invalidateCurrency(deletedItem.currency);
-                }
                 // If an account was deleted, recalculate currency values
                 return recalculateCurrencyValues(filteredItems);
             }
 
             return filteredItems;
         });
-        // Also remove from initial items if present
-        // (If you want to support SSR fallback, you may want to filter from both)
+
+        // Invalidate currency evolution cache after state update
+        if (currencyToInvalidate) {
+            // Use setTimeout to ensure this runs after the state update
+            setTimeout(() => {
+                invalidateCurrency(currencyToInvalidate);
+            }, 0);
+        }
     }
 
     function handleItemArchived(updated: any) {
@@ -162,15 +174,19 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
             // If an account was unarchived, recalculate currency values
             if (updated.type === 'account') {
-                // Invalidate currency evolution cache for this specific currency
-                if (updated.currency) {
-                    invalidateCurrency(updated.currency);
-                }
                 return recalculateCurrencyValues(updatedItems);
             }
 
             return updatedItems;
         });
+
+        // Invalidate currency evolution cache after state update
+        if (updated.type === 'account' && updated.currency) {
+            // Use setTimeout to ensure this runs after the state update
+            setTimeout(() => {
+                invalidateCurrency(updated.currency);
+            }, 0);
+        }
     }
 
     const updateCardSize = useCallback((itemId: string, size: { width: number; height: number }) => {
