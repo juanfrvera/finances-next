@@ -1,6 +1,6 @@
 "use server";
 import { getDb } from "@/lib/db";
-import { ObjectId } from "mongodb";
+import { ObjectId, MongoClient } from "mongodb";
 import type { Transaction } from "@/lib/types";
 
 export async function addItemToDb(item: any) {
@@ -47,7 +47,49 @@ export async function deleteItemFromDb(id: string) {
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
 
-    await db.collection("items").deleteOne({ _id, userId: process.env.TEST_USER_ID });
+    // First get the item to check its type
+    const item = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    if (!item) {
+        return true; // Item doesn't exist, consider it deleted
+    }
+
+    // Check if this item type involves transactions (but exclude currency items)
+    const hasTransactions = item.type === 'debt' || item.type === 'account';
+    const isCurrencyItem = item.type === 'currency';
+
+    if (hasTransactions && !isCurrencyItem) {
+        // Use a transaction to ensure data consistency
+        // Get a new client connection for the transaction
+        const url = process.env.DB_URL!;
+        const client = new MongoClient(url);
+
+        try {
+            await client.connect();
+            const transactionDb = client.db(process.env.DB_NAME!);
+            const session = client.startSession();
+
+            await session.withTransaction(async () => {
+                // Delete all transactions associated with this item
+                await transactionDb.collection("transactions").deleteMany(
+                    { itemId: id },
+                    { session }
+                );
+
+                // Delete the item itself
+                await transactionDb.collection("items").deleteOne(
+                    { _id, userId: process.env.TEST_USER_ID },
+                    { session }
+                );
+            });
+
+            await session.endSession();
+        } finally {
+            await client.close();
+        }
+    } else {
+        // For items without transactions, just delete the item
+        await db.collection("items").deleteOne({ _id, userId: process.env.TEST_USER_ID });
+    }
 
     return true;
 }
