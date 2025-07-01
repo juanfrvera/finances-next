@@ -14,6 +14,39 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
+// Helper function to generate debt summary text
+function getDebtSummaryText(item: any) {
+    const personName = item.withWho || item.name || 'Someone';
+    const totalAmount = item.amount || 0;
+    const totalPaid = item.totalPaid || 0;
+    const remainingAmount = item.remainingAmount || totalAmount;
+    const currency = item.currency || 'USD';
+    const theyPayMe = item.theyPayMe; // true = they owe me, false = I owe them
+
+    if (totalPaid === 0) {
+        // No payments made
+        if (theyPayMe) {
+            return `${personName} owes you ${totalAmount} ${currency}`;
+        } else {
+            return `You owe ${totalAmount} ${currency} to ${personName}`;
+        }
+    } else if (remainingAmount <= 0) {
+        // Fully paid
+        if (theyPayMe) {
+            return `${personName} has paid you ${totalPaid} ${currency} of ${totalAmount} ${currency} ✅`;
+        } else {
+            return `You have paid ${totalPaid} ${currency} of ${totalAmount} ${currency} to ${personName} ✅`;
+        }
+    } else {
+        // Partially paid
+        if (theyPayMe) {
+            return `${personName} has paid you ${totalPaid} ${currency} of ${totalAmount} ${currency}`;
+        } else {
+            return `You have paid ${totalPaid} ${currency} of ${totalAmount} ${currency} to ${personName}`;
+        }
+    }
+}
+
 export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -28,7 +61,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
     const [archiving, setArchiving] = useState(false);
     const [unarchiving, setUnarchiving] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
-    const [activeView, setActiveView] = useState<'details' | 'payments'>('details');
+    const [activeView, setActiveView] = useState<'summary' | 'edit' | 'payments'>('summary');
 
     async function handleSave(data: any) {
         setLoading(true);
@@ -50,7 +83,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             showToast.update(toastId, toastMessages.saveError, 'error');
         } finally {
             setLoading(false);
-            setActiveView('details');
+            setActiveView('summary');
         }
     }
 
@@ -69,7 +102,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             }
 
             showToast.update(toastId, 'Payment recorded successfully!', 'success');
-            setActiveView('details'); // Return to details view
+            setActiveView('summary'); // Return to summary view
         } catch (error) {
             showToast.update(toastId, 'Failed to record payment', 'error');
         } finally {
@@ -138,7 +171,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
     }
 
     function handleCancel() {
-        setActiveView('details');
+        setActiveView('summary');
     }
 
     if (!item) return null;
@@ -213,29 +246,47 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 {/* Dialog header */}
                 <DialogHeader className="pr-20">
                     <DialogTitle>
-                        {activeView === 'details' ? 'Debt Details' : 'Record Payment'}
+                        {activeView === 'summary' ? 'Debt Overview' :
+                            activeView === 'edit' ? 'Edit Debt' : 'Record Payment'}
                     </DialogTitle>
                     <DialogDescription>
-                        {activeView === 'details'
-                            ? 'View and edit debt information and payment status.'
-                            : 'Add a payment towards this debt.'
+                        {activeView === 'summary'
+                            ? 'View debt information and payment status.'
+                            : activeView === 'edit'
+                                ? 'Edit debt information and details.'
+                                : 'Add a payment towards this debt.'
                         }
                     </DialogDescription>
                 </DialogHeader>
 
                 {/* Content based on active view */}
-                {activeView === 'details' && (
+                {activeView === 'summary' && (
                     <div className="space-y-6">
-                        <DebtForm
-                            initial={item}
-                            loading={loading}
-                            deleting={deleting}
-                            onSubmit={handleSave}
-                            onCancel={handleCancel}
-                            submitLabel={loading ? "Saving..." : "Save"}
-                        />
+                        {/* Debt Summary */}
+                        <div className="bg-muted/50 rounded-lg p-4">
+                            <h3 className="text-lg font-semibold mb-2">{getDebtSummaryText(item)}</h3>
+                            {item.description && (
+                                <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
+                            )}
 
-                        {/* Action buttons in the body */}
+                            {/* Payment Status Badge */}
+                            {item.paymentStatus && (
+                                <div className="mb-3">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.paymentStatus === 'paid'
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : item.paymentStatus === 'partially_paid'
+                                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        }`}>
+                                        {item.paymentStatus === 'paid' ? '✅ Fully Paid' :
+                                            item.paymentStatus === 'partially_paid' ? '🟡 Partially Paid' :
+                                                '🔴 Unpaid'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action buttons */}
                         <div className="flex gap-3">
                             <Button
                                 variant="outline"
@@ -249,45 +300,13 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                             <Button
                                 variant="outline"
                                 className="flex-1"
-                                onClick={() => {
-                                    // Focus on the first input field for editing
-                                    const firstInput = document.querySelector('#debt-description') as HTMLInputElement;
-                                    if (firstInput) {
-                                        firstInput.focus();
-                                        firstInput.select();
-                                    }
-                                }}
+                                onClick={() => setActiveView('edit')}
                                 disabled={loading}
                             >
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit Details
                             </Button>
                         </div>
-
-                        {/* Payment status summary */}
-                        {item.paymentStatus && (
-                            <div className="border-t pt-4">
-                                <h3 className="text-sm font-medium mb-2">Payment Status</h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span className="text-muted-foreground">Total Amount:</span>
-                                        <div className="font-medium">{item.amount} {item.currency}</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Paid:</span>
-                                        <div className="font-medium">{item.totalPaid || 0} {item.currency}</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Remaining:</span>
-                                        <div className="font-medium">{remainingAmount} {item.currency}</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Payments:</span>
-                                        <div className="font-medium">{item.transactionCount || 0}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Transactions list */}
                         <div className="border-t pt-4">
@@ -303,6 +322,19 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                                 }}
                             />
                         </div>
+                    </div>
+                )}
+
+                {activeView === 'edit' && (
+                    <div className="space-y-6">
+                        <DebtForm
+                            initial={item}
+                            loading={loading}
+                            deleting={deleting}
+                            onSubmit={handleSave}
+                            onCancel={handleCancel}
+                            submitLabel={loading ? "Saving..." : "Save"}
+                        />
                     </div>
                 )}
 
