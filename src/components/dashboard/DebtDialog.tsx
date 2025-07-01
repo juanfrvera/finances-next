@@ -35,7 +35,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         const toastId = showToast.loading(toastMessages.saving);
         try {
             const updated = await updateItemToDb({ ...item, ...data });
-            
+
             if (updated) {
                 // Refresh payment status
                 const paymentStatus = await getDebtPaymentStatus(updated._id);
@@ -44,7 +44,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             } else {
                 onItemUpdated({ ...item, ...data });
             }
-            
+
             showToast.update(toastId, toastMessages.saved, 'success');
         } catch (error) {
             showToast.update(toastId, toastMessages.saveError, 'error');
@@ -59,7 +59,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         const toastId = showToast.loading('Recording payment...');
         try {
             await createDebtPayment(item._id, data.amount, data.note);
-            
+
             // Update item with new payment status
             const paymentStatus = await getDebtPaymentStatus(item._id);
             const updated = await updateItemToDb(item); // Refresh the item
@@ -67,7 +67,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 const updatedWithStatus = { ...updated, ...paymentStatus };
                 onItemUpdated(updatedWithStatus);
             }
-            
+
             showToast.update(toastId, 'Payment recorded successfully!', 'success');
             setActiveView('details'); // Return to details view
         } catch (error) {
@@ -118,7 +118,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         const toastId = showToast.loading('Unarchiving debt...');
         try {
             const unarchived = await unarchiveItem(item._id);
-            
+
             if (unarchived) {
                 // Refresh payment status
                 const paymentStatus = await getDebtPaymentStatus(unarchived._id);
@@ -127,7 +127,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             } else {
                 onItemUnarchived(item);
             }
-            
+
             showToast.update(toastId, 'Debt unarchived successfully!', 'success');
         } catch (error) {
             showToast.update(toastId, 'Failed to unarchive debt', 'error');
@@ -150,30 +150,6 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             <DialogContent className="max-h-[90vh] overflow-y-auto" showCloseButton={false}>
                 {/* Action buttons positioned absolutely */}
                 <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
-                    {/* View toggle buttons */}
-                    {activeView === 'details' && (
-                        <>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setActiveView('payments')}
-                                title="Add payment"
-                            >
-                                <CreditCard className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setActiveView('payments')}
-                                title="View payments"
-                            >
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                        </>
-                    )}
-
                     {/* More actions dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -240,7 +216,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                         {activeView === 'details' ? 'Debt Details' : 'Record Payment'}
                     </DialogTitle>
                     <DialogDescription>
-                        {activeView === 'details' 
+                        {activeView === 'details'
                             ? 'View and edit debt information and payment status.'
                             : 'Add a payment towards this debt.'
                         }
@@ -250,15 +226,44 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 {/* Content based on active view */}
                 {activeView === 'details' && (
                     <div className="space-y-6">
-                        <DebtForm 
-                            initial={item} 
-                            loading={loading} 
-                            deleting={deleting} 
-                            onSubmit={handleSave} 
-                            onCancel={handleCancel} 
-                            submitLabel={loading ? "Saving..." : "Save"} 
+                        <DebtForm
+                            initial={item}
+                            loading={loading}
+                            deleting={deleting}
+                            onSubmit={handleSave}
+                            onCancel={handleCancel}
+                            submitLabel={loading ? "Saving..." : "Save"}
                         />
-                        
+
+                        {/* Action buttons in the body */}
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setActiveView('payments')}
+                                disabled={loading}
+                            >
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Record Payment
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => {
+                                    // Focus on the first input field for editing
+                                    const firstInput = document.querySelector('#debt-description') as HTMLInputElement;
+                                    if (firstInput) {
+                                        firstInput.focus();
+                                        firstInput.select();
+                                    }
+                                }}
+                                disabled={loading}
+                            >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Details
+                            </Button>
+                        </div>
+
                         {/* Payment status summary */}
                         {item.paymentStatus && (
                             <div className="border-t pt-4">
@@ -287,7 +292,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                         {/* Transactions list */}
                         <div className="border-t pt-4">
                             <h3 className="text-sm font-medium mb-2">Payment History</h3>
-                            <TransactionsList 
+                            <TransactionsList
                                 itemId={item._id}
                                 currency={item.currency}
                                 onRefresh={async () => {
