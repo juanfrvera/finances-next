@@ -5,7 +5,7 @@ import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import GroupedDebtDialog from "./GroupedDebtDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, List, Users, UserX } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
@@ -259,13 +259,48 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     // Helper function to create grouped debt item
     const createGroupedDebt = (debts: any[], groupKey: string) => {
         const [withWho, theyPayMe] = groupKey.split(':');
+        
+        // Group debts by currency
+        const currencyTotals = new Map<string, {
+            amount: number;
+            totalPaid: number;
+            remainingAmount: number;
+            transactionCount: number;
+        }>();
+        
+        debts.forEach(debt => {
+            const currency = debt.currency || 'USD';
+            const current = currencyTotals.get(currency) || {
+                amount: 0,
+                totalPaid: 0,
+                remainingAmount: 0,
+                transactionCount: 0
+            };
+            
+            current.amount += debt.amount || 0;
+            current.totalPaid += debt.totalPaid || 0;
+            current.transactionCount += debt.transactionCount || 0;
+            current.remainingAmount = current.amount - current.totalPaid;
+            
+            currencyTotals.set(currency, current);
+        });
+        
+        // Convert to array for easier handling
+        const currencyBreakdown = Array.from(currencyTotals.entries()).map(([currency, totals]) => ({
+            currency,
+            ...totals,
+            paymentStatus: totals.remainingAmount <= 0 ? 'paid' : 
+                          totals.totalPaid > 0 ? 'partially_paid' : 'unpaid'
+        }));
+        
+        // Calculate overall totals (for legacy compatibility, use first currency)
         const totalAmount = debts.reduce((sum, debt) => sum + (debt.amount || 0), 0);
         const totalPaid = debts.reduce((sum, debt) => sum + (debt.totalPaid || 0), 0);
         const remainingAmount = totalAmount - totalPaid;
         const currency = debts[0]?.currency || 'USD';
         const transactionCount = debts.reduce((sum, debt) => sum + (debt.transactionCount || 0), 0);
 
-        // Determine payment status
+        // Determine overall payment status
         let paymentStatus = 'unpaid';
         if (remainingAmount <= 0) {
             paymentStatus = 'paid';
@@ -284,6 +319,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
             currency,
             paymentStatus,
             transactionCount,
+            currencyBreakdown, // New field with per-currency breakdown
             description: `${debts.length} debts grouped`,
             name: `Grouped: ${withWho}`,
             isGrouped: true,
@@ -768,17 +804,50 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                     onClick={handleDebtClick}
                 >
                     <div className="text-base mb-2">{data.description}</div>
-                    <div className="text-lg font-semibold mb-2">
-                        {data.theyPayMe ? (
-                            <>
-                                {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
-                            </>
-                        ) : (
-                            <>
-                                You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
-                            </>
-                        )}
-                    </div>
+                    
+                    {/* Display currency breakdown if available */}
+                    {data.currencyBreakdown && data.currencyBreakdown.length > 0 ? (
+                        <div className="mb-2">
+                            <div className="text-lg font-semibold mb-2">
+                                {data.theyPayMe ? (
+                                    <>{data.withWho} owes you:</>
+                                ) : (
+                                    <>You owe {data.withWho}:</>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                {data.currencyBreakdown.map((currencyInfo: any) => (
+                                    <div key={currencyInfo.currency} className="text-base font-medium flex items-center gap-2">
+                                        <Circle className="h-2 w-2 fill-current text-muted-foreground" />
+                                        <span>{formatMoney(currencyInfo.amount)} {currencyInfo.currency.toLowerCase()}</span>
+                                        {/* Individual currency payment status */}
+                                        {currencyInfo.paymentStatus && currencyInfo.paymentStatus !== 'unpaid' && (
+                                            <div className="text-xs text-muted-foreground ml-2">
+                                                {currencyInfo.totalPaid > 0 && (
+                                                    <span>Paid: {formatMoney(currencyInfo.totalPaid)}</span>
+                                                )}
+                                                {currencyInfo.remainingAmount > 0 && (
+                                                    <span className="ml-2">Remaining: {formatMoney(currencyInfo.remainingAmount)}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-lg font-semibold mb-2">
+                            {data.theyPayMe ? (
+                                <>
+                                    {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
+                                </>
+                            ) : (
+                                <>
+                                    You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     {/* Payment status indicator */}
                     <div className={`text-sm font-medium ${statusInfo.color}`}>
@@ -788,7 +857,7 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                     {/* Group details */}
                     <div className="text-xs text-muted-foreground mt-1">
                         <div>{data.groupedItems?.length || 0} debts grouped</div>
-                        {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                        {data.paymentStatus && data.paymentStatus !== 'unpaid' && !data.currencyBreakdown && (
                             <>
                                 {data.totalPaid !== undefined && (
                                     <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
@@ -800,6 +869,9 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                                     <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
                                 )}
                             </>
+                        )}
+                        {data.currencyBreakdown && data.transactionCount !== undefined && data.transactionCount > 0 && (
+                            <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
                         )}
                     </div>
                 </div>
