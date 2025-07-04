@@ -5,12 +5,14 @@ import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import GroupedDebtDialog from "./GroupedDebtDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle, Archive, Trash2 } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 import { CurrencyTabStorage, type CurrencyTab } from "@/lib/currency-tab-storage";
 import { DebtGroupingStorage } from "@/lib/debt-grouping-storage";
+import { archiveItem, unarchiveItem } from "@/app/actions";
+import { showToast } from "@/lib/toast";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
@@ -54,9 +56,30 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
     const [groupedDebts, setGroupedDebts] = useState<Set<string>>(new Set()); // Track grouped debt keys
     const [isGroupingHydrated, setIsGroupingHydrated] = useState(false); // Track if grouping state is loaded
+    const [contextMenu, setContextMenu] = useState<{
+        x: number;
+        y: number;
+        item: any;
+    } | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<any>(null);
 
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
+
+    // Close context menu when clicking outside
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        const handleScroll = () => setContextMenu(null);
+        if (contextMenu) {
+            document.addEventListener('click', handleClick);
+            document.addEventListener('scroll', handleScroll);
+            return () => {
+                document.removeEventListener('click', handleClick);
+                document.removeEventListener('scroll', handleScroll);
+            };
+        }
+    }, [contextMenu]);
 
     // Sync items with props
     useEffect(() => {
@@ -370,6 +393,62 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         });
     };
 
+    // Handle right-click context menu
+    const handleContextMenu = (e: React.MouseEvent, item: any) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            item
+        });
+    };
+
+    // Handle archive action
+    const handleArchiveItem = async (item: any) => {
+        const isArchiving = !item.archived;
+        const loadingMessage = isArchiving ? 'Archiving item...' : 'Unarchiving item...';
+        const successMessage = isArchiving ? 'Item archived successfully!' : 'Item unarchived successfully!';
+        const errorMessage = isArchiving ? 'Failed to archive item' : 'Failed to unarchive item';
+        
+        const toastId = showToast.loading(loadingMessage);
+        try {
+            let updatedItem;
+            if (isArchiving) {
+                updatedItem = await archiveItem(item._id);
+                handleItemArchived(updatedItem);
+            } else {
+                updatedItem = await unarchiveItem(item._id);
+                handleItemUnarchived(updatedItem);
+            }
+            showToast.update(toastId, successMessage, 'success');
+        } catch (error) {
+            showToast.update(toastId, errorMessage, 'error');
+        }
+        setContextMenu(null);
+    };
+
+    // Handle delete confirmation
+    const handleDeleteClick = (item: any) => {
+        setItemToDelete(item);
+        setShowDeleteConfirm(true);
+        setContextMenu(null);
+    };
+
+    // Confirm delete
+    const confirmDelete = () => {
+        if (itemToDelete) {
+            handleItemDeleted(itemToDelete._id);
+            setItemToDelete(null);
+        }
+        setShowDeleteConfirm(false);
+    };
+
+    // Cancel delete
+    const cancelDelete = () => {
+        setItemToDelete(null);
+        setShowDeleteConfirm(false);
+    };
+
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
     const itemsToDisplay = showArchived ? clientArchivedItems : clientItems;
     const processedItems = processItemsWithGrouping(itemsToDisplay);
@@ -404,6 +483,60 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                     setEditDialogOpen(true);
                 }}
             />
+            
+            {/* Context Menu */}
+            {contextMenu && (
+                <div
+                    className="fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[120px]"
+                    style={{
+                        left: contextMenu.x,
+                        top: contextMenu.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
+                        onClick={() => handleArchiveItem(contextMenu.item)}
+                    >
+                        <Archive className="h-4 w-4" />
+                        {contextMenu.item.archived ? 'Unarchive' : 'Archive'}
+                    </button>
+                    <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-destructive hover:text-destructive-foreground flex items-center gap-2 text-destructive"
+                        onClick={() => handleDeleteClick(contextMenu.item)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                    </button>
+                </div>
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
+                        <p className="text-sm text-muted-foreground mb-6">
+                            Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.description || 'this item'}"? 
+                            This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                className="px-4 py-2 text-sm border border-border rounded-md hover:bg-accent hover:text-accent-foreground"
+                                onClick={cancelDelete}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
+                                onClick={confirmDelete}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex justify-end mb-2 gap-2 items-center">
                 <button
                     className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
@@ -452,6 +585,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                                 isExpanded={isExpanded}
                                 onUpdateSize={(size: { width: number; height: number }) => updateCardSize(itemId, size)}
                                 onClick={() => { setSelectedItem(item); setEditDialogOpen(true); }}
+                                onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
                                 // Pass grouping functionality for debt items
                                 canGroupDebts={canGroupDebts}
                                 toggleDebtGrouping={toggleDebtGrouping}
@@ -485,6 +619,7 @@ function ItemCard(props: any) {
         onUpdateSize,
         isExpanded,
         onClick,
+        onContextMenu,
         canGroupDebts,
         toggleDebtGrouping,
         groupedDebts,
@@ -507,6 +642,7 @@ function ItemCard(props: any) {
                 }),
             }}
             onClick={rest.type === 'debt' ? undefined : onClick} // Don't handle click for debt items at card level
+            onContextMenu={onContextMenu}
         >
             {rest.archived && (
                 <div className="absolute top-2 right-2 z-10 bg-muted text-muted-foreground text-xs px-2 py-1 rounded">
