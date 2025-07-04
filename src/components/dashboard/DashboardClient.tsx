@@ -5,12 +5,14 @@ import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
 import GroupedDebtDialog from "./GroupedDebtDialog";
 import { Card } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle, Archive, Trash2 } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle, Archive, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 import { CurrencyTabStorage, type CurrencyTab } from "@/lib/currency-tab-storage";
 import { DebtGroupingStorage } from "@/lib/debt-grouping-storage";
+import { CustomOrderStorage } from "@/lib/custom-order-storage";
+import { SortModeStorage, type SortMode } from "@/lib/sort-mode-storage";
 import { archiveItem, unarchiveItem } from "@/app/actions";
 import { showToast } from "@/lib/toast";
 
@@ -47,7 +49,10 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     const [clientItems, setClientItems] = useState<any[]>(items);
     const [clientArchivedItems, setClientArchivedItems] = useState<any[]>(archivedItems);
     const [showArchived, setShowArchived] = useState(false);
-    const [sortDesc, setSortDesc] = useState(true); // true = most recent first
+    const [sortMode, setSortMode] = useState<SortMode>('newest'); // Updated sorting system
+    const [isSortModeHydrated, setIsSortModeHydrated] = useState(false); // Track if sort mode is loaded
+    const [customOrder, setCustomOrder] = useState<string[]>([]); // Custom order of items
+    const [isCustomOrderHydrated, setIsCustomOrderHydrated] = useState(false); // Track if custom order is loaded
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [groupedDebtDialogOpen, setGroupedDebtDialogOpen] = useState(false);
@@ -113,7 +118,23 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         }
     }, []); // Load once after hydration
 
-    // Clean up localStorage entries for debt groups that no longer exist
+    // Load custom order from localStorage after hydration
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedCustomOrder = CustomOrderStorage.loadOrder();
+            setCustomOrder(savedCustomOrder);
+            setIsCustomOrderHydrated(true);
+        }
+    }, []); // Load once after hydration
+
+    // Load sort mode from localStorage after hydration
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedSortMode = SortModeStorage.loadSortMode();
+            setSortMode(savedSortMode);
+            setIsSortModeHydrated(true);
+        }
+    }, []); // Load once after hydration    // Clean up localStorage entries for debt groups that no longer exist
     useEffect(() => {
         if (typeof window !== 'undefined' && isGroupingHydrated) {
             // Get current debt items
@@ -124,12 +145,37 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         }
     }, [clientItems, isGroupingHydrated]); // Run when items change and after hydration
 
+    // Clean up localStorage entries for custom order that no longer exist
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isCustomOrderHydrated) {
+            // Get current item IDs
+            const currentItemIds = clientItems.map(item => item._id).filter(Boolean);
+
+            // Clean up invalid order entries
+            CustomOrderStorage.cleanup(currentItemIds);
+        }
+    }, [clientItems, isCustomOrderHydrated]); // Run when items change and after hydration
+
     // Save grouping state to localStorage whenever it changes
     useEffect(() => {
         if (typeof window !== 'undefined' && isGroupingHydrated) {
             DebtGroupingStorage.saveState(groupedDebts);
         }
     }, [groupedDebts, isGroupingHydrated]); // Save whenever grouping state changes
+
+    // Save custom order to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isCustomOrderHydrated) {
+            CustomOrderStorage.saveOrder(customOrder);
+        }
+    }, [customOrder, isCustomOrderHydrated]); // Save whenever custom order changes
+
+    // Save sort mode to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isSortModeHydrated) {
+            SortModeStorage.saveSortMode(sortMode);
+        }
+    }, [sortMode, isSortModeHydrated]); // Save whenever sort mode changes
 
     // Helper function to recalculate currency values based on account items
     function recalculateCurrencyValues(items: any[]) {
@@ -282,7 +328,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     // Helper function to create grouped debt item
     const createGroupedDebt = (debts: any[], groupKey: string) => {
         const [withWho, theyPayMe] = groupKey.split(':');
-        
+
         // Group debts by currency
         const currencyTotals = new Map<string, {
             amount: number;
@@ -290,7 +336,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
             remainingAmount: number;
             transactionCount: number;
         }>();
-        
+
         debts.forEach(debt => {
             const currency = debt.currency || 'USD';
             const current = currencyTotals.get(currency) || {
@@ -299,23 +345,23 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                 remainingAmount: 0,
                 transactionCount: 0
             };
-            
+
             current.amount += debt.amount || 0;
             current.totalPaid += debt.totalPaid || 0;
             current.transactionCount += debt.transactionCount || 0;
             current.remainingAmount = current.amount - current.totalPaid;
-            
+
             currencyTotals.set(currency, current);
         });
-        
+
         // Convert to array for easier handling
         const currencyBreakdown = Array.from(currencyTotals.entries()).map(([currency, totals]) => ({
             currency,
             ...totals,
-            paymentStatus: totals.remainingAmount <= 0 ? 'paid' : 
-                          totals.totalPaid > 0 ? 'partially_paid' : 'unpaid'
+            paymentStatus: totals.remainingAmount <= 0 ? 'paid' :
+                totals.totalPaid > 0 ? 'partially_paid' : 'unpaid'
         }));
-        
+
         // Calculate overall totals (for legacy compatibility, use first currency)
         const totalAmount = debts.reduce((sum, debt) => sum + (debt.amount || 0), 0);
         const totalPaid = debts.reduce((sum, debt) => sum + (debt.totalPaid || 0), 0);
@@ -393,6 +439,29 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         });
     };
 
+    // Function to handle custom order moves
+    const handleMoveItem = (itemId: string, direction: 'left' | 'right') => {
+        // Switch to custom sort mode if not already there
+        if (sortMode !== 'custom') {
+            setSortMode('custom');
+        }
+
+        // Update custom order
+        setCustomOrder(prev => CustomOrderStorage.moveItem(prev, itemId, direction));
+    };
+
+    // Function to cycle through sort modes
+    const cycleSortMode = () => {
+        setSortMode(prev => {
+            switch (prev) {
+                case 'newest': return 'oldest';
+                case 'oldest': return 'custom';
+                case 'custom': return 'newest';
+                default: return 'newest';
+            }
+        });
+    };
+
     // Handle right-click context menu
     const handleContextMenu = (e: React.MouseEvent, item: any) => {
         e.preventDefault();
@@ -409,7 +478,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         const loadingMessage = isArchiving ? 'Archiving item...' : 'Unarchiving item...';
         const successMessage = isArchiving ? 'Item archived successfully!' : 'Item unarchived successfully!';
         const errorMessage = isArchiving ? 'Failed to archive item' : 'Failed to unarchive item';
-        
+
         const toastId = showToast.loading(loadingMessage);
         try {
             let updatedItem;
@@ -452,15 +521,38 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
     // Sort by editDate, items with no date are considered oldest (last) when descending, newest (first) when ascending
     const itemsToDisplay = showArchived ? clientArchivedItems : clientItems;
     const processedItems = processItemsWithGrouping(itemsToDisplay);
+
     const sortedItems = processedItems.slice().sort((a, b) => {
+        if (sortMode === 'custom') {
+            // Custom sorting: use custom order first, then fall back to newest first for unordered items
+            const aIndex = customOrder.indexOf(a._id);
+            const bIndex = customOrder.indexOf(b._id);
+
+            if (aIndex !== -1 && bIndex !== -1) {
+                // Both items are in custom order
+                return aIndex - bIndex;
+            } else if (aIndex !== -1) {
+                // Only A is in custom order, A comes first
+                return -1;
+            } else if (bIndex !== -1) {
+                // Only B is in custom order, B comes first
+                return 1;
+            }
+            // Neither item is in custom order, fall back to newest first
+        }
+
+        // Date-based sorting (for newest/oldest modes and fallback for custom mode)
         const aHasDate = !!a.editDate;
         const bHasDate = !!b.editDate;
         if (!aHasDate && !bHasDate) return 0;
-        if (!aHasDate) return sortDesc ? 1 : -1;
-        if (!bHasDate) return sortDesc ? -1 : 1;
+
+        const isNewestFirst = sortMode === 'newest' || sortMode === 'custom';
+        if (!aHasDate) return isNewestFirst ? 1 : -1;
+        if (!bHasDate) return isNewestFirst ? -1 : 1;
+
         const aDate = new Date(a.editDate).getTime();
         const bDate = new Date(b.editDate).getTime();
-        return sortDesc ? bDate - aDate : aDate - bDate;
+        return isNewestFirst ? bDate - aDate : aDate - bDate;
     });
 
     return (
@@ -483,7 +575,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                     setEditDialogOpen(true);
                 }}
             />
-            
+
             {/* Context Menu */}
             {contextMenu && (
                 <div
@@ -494,6 +586,17 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Move Left option at the top */}
+                    <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
+                        onClick={() => {
+                            handleMoveItem(contextMenu.item._id, 'left');
+                            setContextMenu(null);
+                        }}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                        Move Left
+                    </button>
                     <button
                         className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
                         onClick={() => handleArchiveItem(contextMenu.item)}
@@ -508,6 +611,17 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                         <Trash2 className="h-4 w-4" />
                         Delete
                     </button>
+                    {/* Move Right option at the bottom */}
+                    <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
+                        onClick={() => {
+                            handleMoveItem(contextMenu.item._id, 'right');
+                            setContextMenu(null);
+                        }}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                        Move Right
+                    </button>
                 </div>
             )}
 
@@ -517,7 +631,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                     <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full p-6">
                         <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
                         <p className="text-sm text-muted-foreground mb-6">
-                            Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.description || 'this item'}"? 
+                            Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.description || 'this item'}"?
                             This action cannot be undone.
                         </p>
                         <div className="flex gap-3 justify-end">
@@ -546,9 +660,9 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                 </button>
                 <button
                     className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
-                    onClick={() => setSortDesc((v) => !v)}
+                    onClick={cycleSortMode}
                 >
-                    Sort by edit date: {sortDesc ? "Newest first" : "Oldest first"}
+                    Sort: {sortMode === 'newest' ? 'Newest first' : sortMode === 'oldest' ? 'Oldest first' : 'Custom order'}
                 </button>
                 <button
                     className="p-1 rounded hover:bg-secondary/80 focus:outline-none transition-colors"
@@ -940,7 +1054,7 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                     onClick={handleDebtClick}
                 >
                     <div className="text-base mb-2">{data.description}</div>
-                    
+
                     {/* Display currency breakdown if available */}
                     {data.currencyBreakdown && data.currencyBreakdown.length > 0 ? (
                         <div className="mb-2">
