@@ -65,9 +65,15 @@ export class CustomOrderStorage {
     }
 
     /**
-     * Move item in custom order
+     * Move item in custom order with automatic position assignment for missing items
      */
-    static moveItem(currentOrder: string[], itemId: string, direction: 'left' | 'right'): string[] {
+    static moveItem(currentOrder: string[], itemId: string, direction: 'left' | 'right', allItemIds?: string[]): string[] {
+        // If we have all item IDs, ensure all items are in the order to prevent jumping
+        if (allItemIds && allItemIds.length > 0) {
+            return this.moveItemWithFullOrder(currentOrder, itemId, direction, allItemIds);
+        }
+
+        // Fallback to simple move (backwards compatibility)
         const currentIndex = currentOrder.indexOf(itemId);
 
         if (currentIndex === -1) {
@@ -84,6 +90,47 @@ export class CustomOrderStorage {
         [newOrder[currentIndex], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[currentIndex]];
 
         return newOrder;
+    }
+
+    /**
+     * Move item with full order assignment to prevent jumping
+     */
+    private static moveItemWithFullOrder(currentOrder: string[], itemId: string, direction: 'left' | 'right', allItemIds: string[]): string[] {
+        // Create a complete order array with all items
+        const completeOrder = this.createCompleteOrder(currentOrder, allItemIds);
+
+        const currentIndex = completeOrder.indexOf(itemId);
+        if (currentIndex === -1) {
+            // This shouldn't happen, but fallback gracefully
+            return direction === 'left' ? [itemId, ...currentOrder] : [...currentOrder, itemId];
+        }
+
+        const newOrder = [...completeOrder];
+        const targetIndex = direction === 'left'
+            ? Math.max(0, currentIndex - 1)
+            : Math.min(completeOrder.length - 1, currentIndex + 1);
+
+        // Swap items
+        [newOrder[currentIndex], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[currentIndex]];
+
+        return newOrder;
+    }
+
+    /**
+     * Create a complete order by inserting missing items in their current visual positions
+     */
+    private static createCompleteOrder(currentOrder: string[], allItemIds: string[]): string[] {
+        const orderedSet = new Set(currentOrder);
+        const unorderedItems = allItemIds.filter(id => !orderedSet.has(id));
+
+        // If no unordered items, return current order filtered to only include existing items
+        if (unorderedItems.length === 0) {
+            return currentOrder.filter(id => allItemIds.includes(id));
+        }
+
+        // Insert unordered items at the end to maintain their current visual order
+        // In the future, we could be smarter about this by considering their actual visual positions
+        return [...currentOrder.filter(id => allItemIds.includes(id)), ...unorderedItems];
     }
 
     /**
@@ -110,5 +157,30 @@ export class CustomOrderStorage {
         } catch (error) {
             console.warn('Failed to cleanup custom order:', error);
         }
+    }
+
+    /**
+     * Initialize custom order from current visual order (when switching to custom mode)
+     */
+    static initializeFromVisualOrder(visualOrder: string[]): string[] {
+        // Return the visual order as the new custom order
+        // This ensures all items have positions and no jumping occurs
+        return [...visualOrder];
+    }
+
+    /**
+     * Ensure all items are included in custom order, adding new items at appropriate positions
+     */
+    static ensureAllItemsInOrder(currentOrder: string[], allItemIds: string[]): string[] {
+        const orderedSet = new Set(currentOrder);
+        const newItems = allItemIds.filter(id => !orderedSet.has(id));
+
+        if (newItems.length === 0) {
+            // Remove any items that no longer exist
+            return currentOrder.filter(id => allItemIds.includes(id));
+        }
+
+        // Add new items at the beginning (newest items should appear first by default)
+        return [...newItems, ...currentOrder.filter(id => allItemIds.includes(id))];
     }
 }

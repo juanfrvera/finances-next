@@ -170,6 +170,20 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
         }
     }, [customOrder, isCustomOrderHydrated]); // Save whenever custom order changes
 
+    // Ensure all items are included in custom order when in custom mode and items change
+    useEffect(() => {
+        if (typeof window !== 'undefined' && isCustomOrderHydrated && sortMode === 'custom' && customOrder.length > 0) {
+            const currentItemsToDisplay = showArchived ? clientArchivedItems : clientItems;
+            const currentProcessedItems = processItemsWithGrouping(currentItemsToDisplay);
+            const allItemIds = currentProcessedItems.map(item => item._id).filter(Boolean);
+
+            const updatedOrder = CustomOrderStorage.ensureAllItemsInOrder(customOrder, allItemIds);
+            if (updatedOrder.length !== customOrder.length || !updatedOrder.every((id, index) => id === customOrder[index])) {
+                setCustomOrder(updatedOrder);
+            }
+        }
+    }, [clientItems, clientArchivedItems, showArchived, isCustomOrderHydrated, sortMode]); // Run when items or view changes
+
     // Save sort mode to localStorage whenever it changes
     useEffect(() => {
         if (typeof window !== 'undefined' && isSortModeHydrated) {
@@ -441,13 +455,43 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
     // Function to handle custom order moves
     const handleMoveItem = (itemId: string, direction: 'left' | 'right') => {
+        // Get all current item IDs from the items being displayed
+        const currentItemsToDisplay = showArchived ? clientArchivedItems : clientItems;
+        const currentProcessedItems = processItemsWithGrouping(currentItemsToDisplay);
+        const allItemIds = currentProcessedItems.map(item => item._id).filter(Boolean);
+
         // Switch to custom sort mode if not already there
         if (sortMode !== 'custom') {
             setSortMode('custom');
         }
 
-        // Update custom order
-        setCustomOrder(prev => CustomOrderStorage.moveItem(prev, itemId, direction));
+        // Initialize custom order from current visual order if empty, then perform the move
+        if (customOrder.length === 0) {
+            // If no custom order exists, initialize from current visual order
+            const currentVisualOrder = currentProcessedItems
+                .slice()
+                .sort((a, b) => {
+                    // Sort by newest first (current default)
+                    const aHasDate = !!a.editDate;
+                    const bHasDate = !!b.editDate;
+                    if (!aHasDate && !bHasDate) return 0;
+                    if (!aHasDate) return 1;
+                    if (!bHasDate) return -1;
+                    const aDate = new Date(a.editDate).getTime();
+                    const bDate = new Date(b.editDate).getTime();
+                    return bDate - aDate;
+                })
+                .map(item => item._id)
+                .filter(Boolean);
+
+            // Initialize the order and then perform the move in one operation
+            const initializedOrder = CustomOrderStorage.initializeFromVisualOrder(currentVisualOrder);
+            const movedOrder = CustomOrderStorage.moveItem(initializedOrder, itemId, direction, allItemIds);
+            setCustomOrder(movedOrder);
+        } else {
+            // Update custom order with complete item list to prevent jumping
+            setCustomOrder(prev => CustomOrderStorage.moveItem(prev, itemId, direction, allItemIds));
+        }
     };
 
     // Function to cycle through sort modes
@@ -524,7 +568,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
 
     const sortedItems = processedItems.slice().sort((a, b) => {
         if (sortMode === 'custom') {
-            // Custom sorting: use custom order first, then fall back to newest first for unordered items
+            // Custom sorting: use custom order positions with fallback
             const aIndex = customOrder.indexOf(a._id);
             const bIndex = customOrder.indexOf(b._id);
 
@@ -538,7 +582,8 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                 // Only B is in custom order, B comes first
                 return 1;
             }
-            // Neither item is in custom order, fall back to newest first
+            // Neither item is in custom order, maintain their relative position using date
+            // This should rarely happen now that we assign positions to all items
         }
 
         // Date-based sorting (for newest/oldest modes and fallback for custom mode)
