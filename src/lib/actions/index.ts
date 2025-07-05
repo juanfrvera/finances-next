@@ -6,6 +6,8 @@ export {
     getCurrentUser,
     requireAuth,
     getCurrentUserId,
+    refreshAuthToken,
+    getAuthConfig,
 } from './auth';
 
 // Item management actions

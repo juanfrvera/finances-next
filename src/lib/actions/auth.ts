@@ -5,8 +5,30 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+/**
+ * Authentication Configuration
+ * 
+ * Environment variables:
+ * - JWT_SECRET: Secret key for JWT token signing
+ * - AUTH_COOKIE_EXPIRES_SECONDS: Number of seconds until cookie expires (default: 604800 = 7 days)
+ * - AUTH_EXTEND_ON_ACTIVITY: Whether to extend cookie on user activity (default: false)
+ */
+
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const COOKIE_NAME = "auth-token";
+
+// Cookie configuration
+const getCookieConfig = () => {
+    const expireSeconds = parseInt(process.env.AUTH_COOKIE_EXPIRES_SECONDS || "604800");
+    const expireDays = Math.ceil(expireSeconds / (24 * 60 * 60)); // Convert seconds to days for JWT
+
+    return {
+        expireSeconds,
+        maxAge: expireSeconds,
+        expiresIn: `${expireDays}d`, // JWT token expiration
+        extendOnActivity: process.env.AUTH_EXTEND_ON_ACTIVITY === "true"
+    };
+};
 
 // Types for authentication
 interface User {
@@ -45,6 +67,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
         }
 
         // Create JWT token
+        const cookieConfig = getCookieConfig();
         const token = jwt.sign(
             {
                 userId: user._id.toString(),
@@ -52,7 +75,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
                 email: user.email
             },
             JWT_SECRET,
-            { expiresIn: "7d" } // Token expires in 7 days
+            { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
         );
 
         // Set secure HTTP-only cookie
@@ -61,7 +84,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+            maxAge: cookieConfig.maxAge,
             path: "/",
         });
 
@@ -132,6 +155,7 @@ export async function signupUser(
         });
 
         // Create JWT token
+        const cookieConfig = getCookieConfig();
         const token = jwt.sign(
             {
                 userId: result.insertedId.toString(),
@@ -139,7 +163,7 @@ export async function signupUser(
                 email
             },
             JWT_SECRET,
-            { expiresIn: "7d" }
+            { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
         );
 
         // Set secure HTTP-only cookie
@@ -148,7 +172,7 @@ export async function signupUser(
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+            maxAge: cookieConfig.maxAge,
             path: "/",
         });
 
@@ -171,6 +195,28 @@ export async function logoutUser(): Promise<void> {
     cookieStore.delete(COOKIE_NAME);
 }
 
+// Helper function to extend cookie expiration on activity
+async function extendCookieExpirationIfConfigured(token: string): Promise<void> {
+    const cookieConfig = getCookieConfig();
+
+    if (!cookieConfig.extendOnActivity) {
+        return;
+    }
+
+    try {
+        const cookieStore = await cookies();
+        cookieStore.set(COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: cookieConfig.maxAge,
+            path: "/",
+        });
+    } catch (error) {
+        console.error("Error extending cookie expiration:", error);
+    }
+}
+
 export async function getCurrentUser(): Promise<{ id: string; username: string; email: string } | null> {
     try {
         const cookieStore = await cookies();
@@ -181,6 +227,10 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
         }
 
         const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+        // Extend cookie expiration if configured to do so
+        await extendCookieExpirationIfConfigured(token);
+
         return {
             id: decoded.userId,
             username: decoded.username,
@@ -207,7 +257,7 @@ export async function requireAuth(): Promise<{ id: string; username: string; ema
         }
         return user;
     }
-    
+
     // In production, require proper authentication
     const user = await getCurrentUser();
     if (!user) {
@@ -220,4 +270,54 @@ export async function requireAuth(): Promise<{ id: string; username: string; ema
 export async function getCurrentUserId(): Promise<string> {
     const user = await requireAuth();
     return user.id;
+}
+
+// Function to manually refresh the authentication token
+export async function refreshAuthToken(): Promise<boolean> {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return false;
+        }
+
+        const cookieConfig = getCookieConfig();
+
+        // Create a new token with extended expiration
+        const newToken = jwt.sign(
+            {
+                userId: user.id,
+                username: user.username,
+                email: user.email
+            },
+            JWT_SECRET,
+            { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
+        );
+
+        // Set the new cookie
+        const cookieStore = await cookies();
+        cookieStore.set(COOKIE_NAME, newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: cookieConfig.maxAge,
+            path: "/",
+        });
+
+        return true;
+    } catch (error) {
+        console.error("Error refreshing auth token:", error);
+        return false;
+    }
+}
+
+// Function to get cookie configuration (for client-side use)
+export async function getAuthConfig(): Promise<{
+    expireSeconds: number;
+    extendOnActivity: boolean;
+}> {
+    const cookieConfig = getCookieConfig();
+    return {
+        expireSeconds: cookieConfig.expireSeconds,
+        extendOnActivity: cookieConfig.extendOnActivity,
+    };
 }
