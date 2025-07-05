@@ -17,19 +17,19 @@ export default function Login() {
 
         try {
             const result = await loginUser(username, password);
-            
+
             if (result.success) {
                 console.log("Login successful!", result.user);
-                // Redirect to dashboard
+                // Keep loading true during redirect - page will unmount anyway
                 router.push("/");
             } else {
+                setIsLoading(false);
                 setError(result.error || "Login failed");
             }
         } catch (err) {
             console.error("Login error:", err);
-            setError(err instanceof Error ? err.message : "Login failed");
-        } finally {
             setIsLoading(false);
+            setError(err instanceof Error ? err.message : "Login failed");
         }
     };
 
@@ -39,19 +39,19 @@ export default function Login() {
 
         try {
             const result = await signupUser(username, email, password, confirmPassword);
-            
+
             if (result.success) {
                 console.log("Signup successful!", result.user);
-                // Redirect to dashboard
+                // Keep loading true during redirect - page will unmount anyway
                 router.push("/");
             } else {
+                setIsLoading(false);
                 setError(result.error || "Signup failed");
             }
         } catch (err) {
             console.error("Signup error:", err);
-            setError(err instanceof Error ? err.message : "Signup failed");
-        } finally {
             setIsLoading(false);
+            setError(err instanceof Error ? err.message : "Signup failed");
         }
     };
 
