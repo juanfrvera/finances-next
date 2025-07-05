@@ -1,18 +1,20 @@
 "use server";
 import { getDb } from "@/lib/db";
 import { ObjectId, MongoClient } from "mongodb";
+import { requireAuth } from "./auth";
 
 export async function addItemToDb(item: any) {
+    const user = await requireAuth();
     const now = new Date().toISOString();
     const db = await getDb();
     const result = await db.collection("items").insertOne({
         ...item,
-        userId: process.env.TEST_USER_ID,
+        userId: user.id,
         createDate: now,
         editDate: now,
     });
     // Fetch the inserted item with all fields
-    const inserted = await db.collection("items").findOne({ _id: result.insertedId, userId: process.env.TEST_USER_ID });
+    const inserted = await db.collection("items").findOne({ _id: result.insertedId, userId: user.id });
     if (!inserted) return null;
     // Convert _id and dates to string
     return {
@@ -25,13 +27,14 @@ export async function addItemToDb(item: any) {
 
 export async function updateItemToDb(item: any) {
     if (!item._id) throw new Error("Missing _id for update");
+    const user = await requireAuth();
     const db = await getDb();
     const _id = typeof item._id === "string" ? ObjectId.createFromHexString(item._id) : item._id;
     const editDate = new Date().toISOString();
     // Exclude _id from the update payload to avoid attempting to overwrite it
     const { _id: _, ...updateFields } = item;
-    await db.collection("items").updateOne({ _id, userId: process.env.TEST_USER_ID }, { $set: { ...updateFields, editDate } });
-    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    await db.collection("items").updateOne({ _id, userId: user.id }, { $set: { ...updateFields, editDate } });
+    const updated = await db.collection("items").findOne({ _id, userId: user.id });
     if (!updated) return null;
 
     return {
@@ -43,11 +46,12 @@ export async function updateItemToDb(item: any) {
 }
 
 export async function deleteItemFromDb(id: string) {
+    const user = await requireAuth();
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
 
     // First get the item to check its type
-    const item = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    const item = await db.collection("items").findOne({ _id, userId: user.id });
     if (!item) {
         return true; // Item doesn't exist, consider it deleted
     }
@@ -76,7 +80,7 @@ export async function deleteItemFromDb(id: string) {
 
                 // Delete the item itself
                 await transactionDb.collection("items").deleteOne(
-                    { _id, userId: process.env.TEST_USER_ID },
+                    { _id, userId: user.id },
                     { session }
                 );
             });
@@ -87,23 +91,24 @@ export async function deleteItemFromDb(id: string) {
         }
     } else {
         // For items without transactions, just delete the item
-        await db.collection("items").deleteOne({ _id, userId: process.env.TEST_USER_ID });
+        await db.collection("items").deleteOne({ _id, userId: user.id });
     }
 
     return true;
 }
 
 export async function archiveItem(id: string) {
+    const user = await requireAuth();
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
     const editDate = new Date().toISOString();
 
     await db.collection("items").updateOne(
-        { _id, userId: process.env.TEST_USER_ID },
+        { _id, userId: user.id },
         { $set: { archived: true, editDate } }
     );
 
-    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    const updated = await db.collection("items").findOne({ _id, userId: user.id });
     if (!updated) return null;
 
     return {
@@ -115,16 +120,17 @@ export async function archiveItem(id: string) {
 }
 
 export async function unarchiveItem(id: string) {
+    const user = await requireAuth();
     const db = await getDb();
     const _id = typeof id === "string" ? ObjectId.createFromHexString(id) : id;
     const editDate = new Date().toISOString();
 
     await db.collection("items").updateOne(
-        { _id, userId: process.env.TEST_USER_ID },
+        { _id, userId: user.id },
         { $set: { archived: false, editDate } }
     );
 
-    const updated = await db.collection("items").findOne({ _id, userId: process.env.TEST_USER_ID });
+    const updated = await db.collection("items").findOne({ _id, userId: user.id });
     if (!updated) return null;
 
     return {

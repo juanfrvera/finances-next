@@ -194,9 +194,30 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
 
 // Helper function to verify authentication and redirect if needed
 export async function requireAuth(): Promise<{ id: string; username: string; email: string }> {
+    // In development mode, use TEST_USER_ID if no authentication is set up
+    if (process.env.TEST_USER_ID) {
+        const user = await getCurrentUser();
+        if (!user) {
+            // Return a mock user for development
+            return {
+                id: process.env.TEST_USER_ID,
+                username: "testuser",
+                email: "test@example.com"
+            };
+        }
+        return user;
+    }
+    
+    // In production, require proper authentication
     const user = await getCurrentUser();
     if (!user) {
         redirect("/login");
     }
     return user;
+}
+
+// Helper function to get current user ID (for server actions)
+export async function getCurrentUserId(): Promise<string> {
+    const user = await requireAuth();
+    return user.id;
 }

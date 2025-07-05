@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { PieChart as PieChartIcon, BarChart3, List, Users, UserX, Circle, Archive, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoutButton } from "@/components/logout-button";
 import { useCurrencyEvolutionMutations } from "@/hooks/useCurrencyEvolution";
 import { CurrencyTabStorage, type CurrencyTab } from "@/lib/currency-tab-storage";
 import { DebtGroupingStorage } from "@/lib/debt-grouping-storage";
@@ -719,6 +720,7 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
                     </svg>
                 </button>
+                <LogoutButton />
                 <ThemeToggle />
             </div>
             {/* CSS Grid masonry layout */}

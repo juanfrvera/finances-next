@@ -1,5 +1,6 @@
 "use server";
 import { getDb } from "@/lib/db";
+import { requireAuth } from "./auth";
 
 // Currency evolution data types
 interface CurrencyEvolutionDataPoint {
@@ -9,12 +10,12 @@ interface CurrencyEvolutionDataPoint {
 }
 
 // Helper function to get currency evolution data (not cached)
-async function getCurrencyEvolutionDataInternal(currency: string): Promise<CurrencyEvolutionDataPoint[]> {
+async function getCurrencyEvolutionDataInternal(currency: string, userId: string): Promise<CurrencyEvolutionDataPoint[]> {
     const db = await getDb();
 
     // Get all accounts for this currency
     const accounts = await db.collection("items")
-        .find({ type: "account", currency: currency, userId: process.env.TEST_USER_ID })
+        .find({ type: "account", currency: currency, userId: userId })
         .toArray();
 
     if (accounts.length === 0) {
@@ -112,5 +113,6 @@ async function getCurrencyEvolutionDataInternal(currency: string): Promise<Curre
 
 // Get currency evolution data (no server-side caching)
 export async function getCurrencyEvolutionData(currency: string): Promise<CurrencyEvolutionDataPoint[]> {
-    return getCurrencyEvolutionDataInternal(currency);
+    const user = await requireAuth();
+    return getCurrencyEvolutionDataInternal(currency, user.id);
 }

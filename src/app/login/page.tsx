@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthPage from "@/components/auth/AuthPage";
+import { AuthGuard } from "@/components/auth-guard";
+import { loginUser, signupUser } from "@/app/actions";
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -14,20 +16,17 @@ export default function Login() {
         setError("");
 
         try {
-            console.log("Login attempt:", { username, password });
-
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Example validation (replace with real authentication)
-            if (username === "admin" && password === "password") {
-                console.log("Login successful!");
-                // Redirect to dashboard or set authentication state
+            const result = await loginUser(username, password);
+            
+            if (result.success) {
+                console.log("Login successful!", result.user);
+                // Redirect to dashboard
                 router.push("/");
             } else {
-                throw new Error("Invalid username or password");
+                setError(result.error || "Login failed");
             }
         } catch (err) {
+            console.error("Login error:", err);
             setError(err instanceof Error ? err.message : "Login failed");
         } finally {
             setIsLoading(false);
@@ -39,25 +38,17 @@ export default function Login() {
         setError("");
 
         try {
-            // Validate that passwords match
-            if (password !== confirmPassword) {
-                throw new Error("Passwords do not match");
-            }
-
-            console.log("Signup attempt:", { username, email, password });
-
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Example validation (replace with real user creation)
-            if (username.length >= 3 && email.includes("@") && password.length >= 8) {
-                console.log("Signup successful!");
-                // Redirect to dashboard or set authentication state
+            const result = await signupUser(username, email, password, confirmPassword);
+            
+            if (result.success) {
+                console.log("Signup successful!", result.user);
+                // Redirect to dashboard
                 router.push("/");
             } else {
-                throw new Error("Failed to create account. Please check your information.");
+                setError(result.error || "Signup failed");
             }
         } catch (err) {
+            console.error("Signup error:", err);
             setError(err instanceof Error ? err.message : "Signup failed");
         } finally {
             setIsLoading(false);
@@ -65,12 +56,14 @@ export default function Login() {
     };
 
     return (
-        <AuthPage
-            onLogin={handleLogin}
-            onSignup={handleSignup}
-            isLoading={isLoading}
-            error={error}
-            defaultMode="login"
-        />
+        <AuthGuard requireAuth={false} redirectTo="/login">
+            <AuthPage
+                onLogin={handleLogin}
+                onSignup={handleSignup}
+                isLoading={isLoading}
+                error={error}
+                defaultMode="login"
+            />
+        </AuthGuard>
     );
 }

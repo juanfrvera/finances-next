@@ -5,6 +5,7 @@ export {
     logoutUser,
     getCurrentUser,
     requireAuth,
+    getCurrentUserId,
 } from './auth';
 
 // Item management actions

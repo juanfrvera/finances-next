@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/actions/auth";
 import DashboardClient from "@/components/dashboard/DashboardClient";
 
 // Helper function to calculate debt payment statuses
@@ -88,8 +89,9 @@ function processArchivedItems(archivedItems: any[], debtPaymentStatuses: Record<
 }
 
 export default async function Dashboard() {
+  const userId = await getCurrentUserId();
   const db = await getDb();
-  const items = await db.collection("items").find({ userId: process.env.TEST_USER_ID }).toArray();
+  const items = await db.collection("items").find({ userId }).toArray();
   
   // Convert to plain objects and _id to string, ensure createDate/editDate are strings
   const plainItems = items.map((item: any) => ({
