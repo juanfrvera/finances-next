@@ -46,6 +46,68 @@ function formatMoney(amount: number) {
     return (<span>{parts[0]}<span className="text-sm">.{parts[1]}</span></span>);
 }
 
+// Helper function to generate debt summary text for dashboard display
+function getDebtSummaryText(item: any) {
+    const personName = item.withWho || item.name || 'Someone';
+    const totalAmount = item.amount || 0;
+    const totalPaid = item.totalPaid || 0;
+    const remainingAmount = item.remainingAmount || totalAmount;
+    const currency = item.currency || 'USD';
+    const theyPayMe = item.theyPayMe; // true = they owe me, false = I owe them
+
+    if (totalPaid === 0) {
+        // No payments made - show full amount owed
+        if (theyPayMe) {
+            return {
+                text: `${personName} owes you`,
+                amount: totalAmount,
+                currency
+            };
+        } else {
+            return {
+                text: `You owe`,
+                amount: remainingAmount,
+                currency,
+                toWho: personName
+            };
+        }
+    } else if (remainingAmount <= 0) {
+        // Fully paid - show past tense with full amount
+        if (theyPayMe) {
+            return {
+                text: `${personName} paid you`,
+                amount: totalAmount,
+                currency,
+                isPaid: true
+            };
+        } else {
+            return {
+                text: `You paid`,
+                amount: totalAmount,
+                currency,
+                toWho: personName,
+                isPaid: true
+            };
+        }
+    } else {
+        // Partially paid - show remaining amount for current debt
+        if (theyPayMe) {
+            return {
+                text: `${personName} owes you`,
+                amount: remainingAmount,
+                currency
+            };
+        } else {
+            return {
+                text: `You owe`,
+                amount: remainingAmount,
+                currency,
+                toWho: personName
+            };
+        }
+    }
+}
+
 export default function DashboardClient({ items, archivedItems }: DashboardClientProps) {
     const [clientItems, setClientItems] = useState<any[]>(items);
     const [clientArchivedItems, setClientArchivedItems] = useState<any[]>(archivedItems);
@@ -1106,69 +1168,87 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
                     {data.currencyBreakdown && data.currencyBreakdown.length > 0 ? (
                         <div className="mb-2">
                             <div className="text-lg font-semibold mb-2">
-                                {data.theyPayMe ? (
-                                    <>{data.withWho} owes you:</>
-                                ) : (
-                                    <>You owe {data.withWho}:</>
-                                )}
+                                {(() => {
+                                    // For grouped debts, show appropriate header based on payment status
+                                    const totalPaid = data.totalPaid || 0;
+                                    const totalAmount = data.amount || 0;
+                                    const remainingAmount = data.remainingAmount || totalAmount;
+
+                                    if (totalPaid === 0) {
+                                        return data.theyPayMe ?
+                                            <>{data.withWho} owes you:</> :
+                                            <>You owe {data.withWho}:</>;
+                                    } else if (remainingAmount <= 0) {
+                                        return data.theyPayMe ?
+                                            <>{data.withWho} paid you:</> :
+                                            <>You paid {data.withWho}:</>;
+                                    } else {
+                                        return data.theyPayMe ?
+                                            <>{data.withWho} owes you:</> :
+                                            <>You owe {data.withWho}:</>;
+                                    }
+                                })()}
                             </div>
                             <div className="space-y-1">
-                                {data.currencyBreakdown.map((currencyInfo: any) => (
-                                    <div key={currencyInfo.currency} className="text-base font-medium flex items-center gap-2">
-                                        <Circle className="h-2 w-2 fill-current text-muted-foreground" />
-                                        <span>{formatMoney(currencyInfo.amount)} {currencyInfo.currency.toLowerCase()}</span>
-                                        {/* Individual currency payment status */}
-                                        {currencyInfo.paymentStatus && currencyInfo.paymentStatus !== 'unpaid' && (
-                                            <div className="text-xs text-muted-foreground ml-2">
-                                                {currencyInfo.totalPaid > 0 && (
-                                                    <span>Paid: {formatMoney(currencyInfo.totalPaid)}</span>
-                                                )}
-                                                {currencyInfo.remainingAmount > 0 && (
-                                                    <span className="ml-2">Remaining: {formatMoney(currencyInfo.remainingAmount)}</span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                {data.currencyBreakdown.map((currencyInfo: any) => {
+                                    const currencyTotalPaid = currencyInfo.totalPaid || 0;
+                                    const currencyTotalAmount = currencyInfo.amount || 0;
+                                    const currencyRemainingAmount = currencyInfo.remainingAmount || currencyTotalAmount;
+
+                                    // Determine which amount to show based on payment status
+                                    let displayAmount = currencyTotalAmount;
+                                    let showProgress = false;
+
+                                    if (currencyTotalPaid === 0) {
+                                        // No payments - show original amount
+                                        displayAmount = currencyTotalAmount;
+                                    } else if (currencyRemainingAmount <= 0) {
+                                        // Fully paid - show total amount paid
+                                        displayAmount = currencyTotalAmount;
+                                    } else {
+                                        // Partially paid - show remaining amount
+                                        displayAmount = currencyRemainingAmount;
+                                        showProgress = true;
+                                    }
+
+                                    return (
+                                        <div key={currencyInfo.currency} className="text-base font-medium flex items-center gap-2">
+                                            <Circle className="h-2 w-2 fill-current text-muted-foreground" />
+                                            <span>
+                                                {formatMoney(displayAmount)} {currencyInfo.currency.toLowerCase()}
+                                                {currencyRemainingAmount <= 0 && currencyTotalPaid > 0 && ' ✅'}
+                                            </span>
+                                            {/* Simplified payment progress */}
+                                            {showProgress && (
+                                                <div className="text-xs text-muted-foreground ml-2">
+                                                    {formatMoney(currencyTotalPaid)} paid of {formatMoney(currencyTotalAmount)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ) : (
                         <div className="text-lg font-semibold mb-2">
-                            {data.theyPayMe ? (
-                                <>
-                                    {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
-                                </>
-                            ) : (
-                                <>
-                                    You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
-                                </>
-                            )}
+                            {(() => {
+                                const summary = getDebtSummaryText(data);
+                                return (
+                                    <>
+                                        {summary.text} {formatMoney(summary.amount)} {summary.currency}
+                                        {summary.toWho && ` to ${summary.toWho}`}
+                                        {summary.isPaid && ' ✅'}
+                                    </>
+                                );
+                            })()}
                         </div>
                     )}
-
-                    {/* Payment status indicator */}
-                    <div className={`text-sm font-medium ${statusInfo.color}`}>
-                        {statusInfo.text}
-                    </div>
 
                     {/* Group details */}
                     <div className="text-xs text-muted-foreground mt-1">
                         <div>{data.groupedItems?.length || 0} debts grouped</div>
-                        {data.paymentStatus && data.paymentStatus !== 'unpaid' && !data.currencyBreakdown && (
-                            <>
-                                {data.totalPaid !== undefined && (
-                                    <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
-                                )}
-                                {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
-                                    <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
-                                )}
-                                {data.transactionCount !== undefined && data.transactionCount > 0 && (
-                                    <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
-                                )}
-                            </>
-                        )}
-                        {data.currencyBreakdown && data.transactionCount !== undefined && data.transactionCount > 0 && (
-                            <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
+                        {data.paymentStatus && data.paymentStatus !== 'unpaid' && data.totalPaid && data.amount && (
+                            <div>{formatMoney(data.totalPaid)} paid of {formatMoney(data.amount)}</div>
                         )}
                     </div>
                 </div>
@@ -1202,34 +1282,22 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
             >
                 <div className="text-base mb-2">{data.description}</div>
                 <div className="text-lg font-semibold mb-2">
-                    {data.theyPayMe ? (
-                        <>
-                            {data.withWho} owes you {formatMoney(data.amount)} {data.currency}.
-                        </>
-                    ) : (
-                        <>
-                            You owe {formatMoney(data.amount)} {data.currency} to {data.withWho}.
-                        </>
-                    )}
+                    {(() => {
+                        const summary = getDebtSummaryText(data);
+                        return (
+                            <>
+                                {summary.text} {formatMoney(summary.amount)} {summary.currency}
+                                {summary.toWho && ` to ${summary.toWho}`}
+                                {summary.isPaid && ' ✅'}
+                            </>
+                        );
+                    })()}
                 </div>
 
-                {/* Payment status indicator */}
-                <div className={`text-sm font-medium ${statusInfo.color}`}>
-                    {statusInfo.text}
-                </div>
-
-                {/* Payment details */}
-                {data.paymentStatus && data.paymentStatus !== 'unpaid' && (
+                {/* Simple payment progress */}
+                {data.paymentStatus && data.paymentStatus !== 'unpaid' && data.totalPaid && data.amount && (
                     <div className="text-xs text-muted-foreground mt-1">
-                        {data.totalPaid !== undefined && (
-                            <div>Paid: {formatMoney(data.totalPaid)} {data.currency}</div>
-                        )}
-                        {data.remainingAmount !== undefined && data.remainingAmount > 0 && (
-                            <div>Remaining: {formatMoney(data.remainingAmount)} {data.currency}</div>
-                        )}
-                        {data.transactionCount !== undefined && data.transactionCount > 0 && (
-                            <div>{data.transactionCount} payment{data.transactionCount > 1 ? 's' : ''}</div>
-                        )}
+                        {formatMoney(data.totalPaid)} paid of {formatMoney(data.amount)}
                     </div>
                 )}
             </div>

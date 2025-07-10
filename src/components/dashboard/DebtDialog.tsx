@@ -24,25 +24,25 @@ function getDebtSummaryText(item: any) {
     const theyPayMe = item.theyPayMe; // true = they owe me, false = I owe them
 
     if (totalPaid === 0) {
-        // No payments made
+        // No payments made - show full amount owed
         if (theyPayMe) {
             return `${personName} owes you ${totalAmount} ${currency}`;
         } else {
-            return `You owe ${totalAmount} ${currency} to ${personName}`;
+            return `You owe ${remainingAmount} ${currency} to ${personName}`;
         }
     } else if (remainingAmount <= 0) {
-        // Fully paid
+        // Fully paid - show past tense with full amount
         if (theyPayMe) {
-            return `${personName} has paid you ${totalPaid} ${currency} of ${totalAmount} ${currency} ✅`;
+            return `${personName} paid you ${totalAmount} ${currency} ✅`;
         } else {
-            return `You have paid ${totalPaid} ${currency} of ${totalAmount} ${currency} to ${personName} ✅`;
+            return `You paid ${totalAmount} ${currency} to ${personName} ✅`;
         }
     } else {
-        // Partially paid
+        // Partially paid - show remaining amount for current debt
         if (theyPayMe) {
-            return `${personName} has paid you ${totalPaid} ${currency} of ${totalAmount} ${currency}`;
+            return `${personName} owes you ${remainingAmount} ${currency} (paid ${totalPaid} of ${totalAmount})`;
         } else {
-            return `You have paid ${totalPaid} ${currency} of ${totalAmount} ${currency} to ${personName}`;
+            return `You owe ${remainingAmount} ${currency} to ${personName} (paid ${totalPaid} of ${totalAmount})`;
         }
     }
 }
