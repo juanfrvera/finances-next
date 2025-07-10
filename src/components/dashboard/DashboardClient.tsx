@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import AddItemDialog from "./AddItemDialog";
 import ItemDialog from "./ItemDialog";
@@ -111,6 +111,25 @@ function getDebtSummaryText(item: any) {
 export default function DashboardClient({ items, archivedItems }: DashboardClientProps) {
     const [clientItems, setClientItems] = useState<any[]>(items);
     const [clientArchivedItems, setClientArchivedItems] = useState<any[]>(archivedItems);
+    
+    // Calculate available currencies once from currency-type items only
+    const availableCurrencies = useMemo(() => {
+        return Array.from(new Set(
+            clientItems
+                .filter(item => item.type === 'currency')
+                .map(item => item.currency)
+        )).filter(Boolean).sort();
+    }, [clientItems]);
+    
+    // Calculate available persons from debt items
+    const availablePersons = useMemo(() => {
+        return Array.from(new Set(
+            clientItems
+                .filter(item => item.type === 'debt' && item.withWho)
+                .map(item => item.withWho)
+        )).filter(Boolean).sort();
+    }, [clientItems]);
+    
     const [showArchived, setShowArchived] = useState(false);
     const [sortMode, setSortMode] = useState<SortMode>('newest'); // Updated sorting system
     const [isSortModeHydrated, setIsSortModeHydrated] = useState(false); // Track if sort mode is loaded
@@ -673,6 +692,8 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
                 onItemDeleted={handleItemDeleted}
                 onItemArchived={handleItemArchived}
                 onItemUnarchived={handleItemUnarchived}
+                availableCurrencies={availableCurrencies}
+                availablePersons={availablePersons}
             />
             <GroupedDebtDialog
                 open={groupedDebtDialogOpen}
@@ -787,7 +808,11 @@ export default function DashboardClient({ items, archivedItems }: DashboardClien
             </div>
             {/* CSS Grid masonry layout */}
             <div className="dashboard-grid mt-4">
-                <AddItemDialog onItemCreated={handleItemCreated} />
+                <AddItemDialog 
+                    onItemCreated={handleItemCreated} 
+                    availableCurrencies={availableCurrencies}
+                    availablePersons={availablePersons}
+                />
                 {sortedItems.map((item, idx) => {
                     const itemId = item._id?.toString() ?? `item-${idx}`;
                     const cardSize = cardSizes[itemId] || { width: 1, height: 1 }; // Default to 1x1

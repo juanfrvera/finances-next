@@ -226,7 +226,7 @@ function DeleteConfirmationDialog({
     );
 }
 
-export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
+export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [] }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
@@ -234,6 +234,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
     onItemDeleted: (id: string) => void;
     onItemArchived?: (item: any) => void;
     onItemUnarchived?: (item: any) => void;
+    availableCurrencies?: string[];
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -528,7 +529,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         case 'editInfo':
             dialogTitle = "Edit Account";
             dialogDescription = "Edit the account details.";
-            form = <AccountForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
+            form = <AccountForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} availableCurrencies={availableCurrencies} />;
             break;
     }
 

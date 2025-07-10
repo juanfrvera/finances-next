@@ -47,7 +47,7 @@ function getDebtSummaryText(item: any) {
     }
 }
 
-export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
+export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [], availablePersons = [] }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
@@ -55,6 +55,8 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
     onItemDeleted: (id: string) => void;
     onItemArchived?: (item: any) => void;
     onItemUnarchived?: (item: any) => void;
+    availableCurrencies?: string[];
+    availablePersons?: string[];
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -352,6 +354,8 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                             onSubmit={handleSave}
                             onCancel={handleCancel}
                             submitLabel={loading ? "Saving..." : "Save"}
+                            availableCurrencies={availableCurrencies}
+                            availablePersons={availablePersons}
                         />
                     </div>
                 )}

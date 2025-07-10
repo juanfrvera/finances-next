@@ -37,7 +37,15 @@ interface ServiceItem {
 }
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 
-export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item: any) => void }) {
+export default function AddItemDialog({ 
+    onItemCreated, 
+    availableCurrencies = [], 
+    availablePersons = [] 
+}: { 
+    onItemCreated: (item: any) => void, 
+    availableCurrencies?: string[], 
+    availablePersons?: string[] 
+}) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<ItemType>(null);
 
@@ -98,10 +106,10 @@ export default function AddItemDialog({ onItemCreated }: { onItemCreated: (item:
                     </div>
                 ) : (
                     <div>
-                        {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
-                        {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
-                        {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
-                        {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} />}
+                        {selectedType === 'service' && <CreateServiceForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} />}
+                        {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} />}
+                        {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} availablePersons={availablePersons} />}
+                        {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} />}
                     </div>
                 )}
             </DialogContent>
@@ -118,7 +126,7 @@ function TypeBox({ label, description, onClick }: { label: string; description: 
     );
 }
 
-function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
+function CreateServiceForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { name: string; cost: number; currency: string; isManual: boolean }) {
         setLoading(true);
@@ -136,11 +144,11 @@ function CreateServiceForm({ onClose, onItemCreated }: { onClose: () => void, on
         }
     }
     return (
-        <ServiceForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
+        <ServiceForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} />
     );
 }
 
-function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
+function CreateAccountForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { name: string; balance: number; currency: string }) {
         setLoading(true);
@@ -158,11 +166,11 @@ function CreateAccountForm({ onClose, onItemCreated }: { onClose: () => void, on
         }
     }
     return (
-        <AccountForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
+        <AccountForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} />
     );
 }
 
-function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
+function CreateDebtForm({ onClose, onItemCreated, availableCurrencies = [], availablePersons = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[], availablePersons?: string[] }) {
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { description: string; withWho: string; amount: number; currency: string; theyPayMe: boolean }) {
         setLoading(true);
@@ -180,11 +188,11 @@ function CreateDebtForm({ onClose, onItemCreated }: { onClose: () => void, onIte
         }
     }
     return (
-        <DebtForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
+        <DebtForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} availablePersons={availablePersons} />
     );
 }
 
-function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, onItemCreated: (item: any) => void }) {
+function CreateCurrencyForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
     async function handleSubmit(data: { currency: string }) {
         setLoading(true);
@@ -202,6 +210,6 @@ function CreateCurrencyForm({ onClose, onItemCreated }: { onClose: () => void, o
         }
     }
     return (
-        <CurrencyForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} />
+        <CurrencyForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} />
     );
 }

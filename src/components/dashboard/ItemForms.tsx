@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SearchDropdown } from "@/components/ui/search-dropdown";
 
 function Spinner() {
     return (
@@ -84,7 +85,7 @@ function DatePicker({ date, onDateChange }: { date?: Date; onDateChange: (date: 
     );
 }
 
-export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Service", showDelete, onDelete }: {
+export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Service", showDelete, onDelete, availableCurrencies = [] }: {
     initial?: { name: string; cost: string | number; currency: string; isManual: boolean };
     loading: boolean;
     deleting?: boolean;
@@ -93,6 +94,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
     submitLabel?: string;
     showDelete?: boolean;
     onDelete?: () => void;
+    availableCurrencies?: string[];
 }) {
     const [form, setForm] = useState({
         name: initial?.name || '',
@@ -100,6 +102,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
         currency: initial?.currency || '',
         isManual: initial?.isManual || false,
     });
+    
     const isValid = form.name && form.cost && form.currency;
     const isChanged =
         form.name !== (initial?.name || '') ||
@@ -135,10 +138,17 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
                 <Label htmlFor="service-cost">Cost</Label>
                 <Input id="service-cost" name="cost" placeholder="Cost" type="number" required value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             </div>
-            <div className="grid w-full gap-3">
-                <Label htmlFor="service-currency">Currency</Label>
-                <Input id="service-currency" name="currency" placeholder="Currency" required value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
-            </div>
+            <SearchDropdown
+                id="service-currency"
+                label="Currency"
+                placeholder="Currency"
+                value={form.currency}
+                onChange={(value) => setForm(f => ({ ...f, currency: value }))}
+                options={availableCurrencies}
+                required
+                createNewLabel="Create currency"
+                onCreateNew={(value) => setForm(f => ({ ...f, currency: value }))}
+            />
             <div className="flex items-center gap-2">
                 <input type="checkbox" id="service-isManual" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} />
                 <Label htmlFor="service-isManual" className="mb-0">Manual payment</Label>
@@ -162,7 +172,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
     );
 }
 
-export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Account", showDelete, onDelete }: {
+export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Account", showDelete, onDelete, availableCurrencies = [] }: {
     initial?: { name: string; balance: string | number; currency: string };
     loading: boolean;
     deleting?: boolean;
@@ -171,12 +181,14 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     submitLabel?: string;
     showDelete?: boolean;
     onDelete?: () => void;
+    availableCurrencies?: string[];
 }) {
     const [accountForm, setAccountForm] = useState({
         name: initial?.name || '',
         balance: initial?.balance?.toString() || '',
         currency: initial?.currency || '',
     });
+    
     const isValid = accountForm.name && accountForm.balance && accountForm.currency;
     const isChanged =
         accountForm.name !== (initial?.name || '') ||
@@ -209,10 +221,17 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
                 <Label htmlFor="account-balance">Balance</Label>
                 <Input id="account-balance" name="balance" placeholder="Balance" type="number" required value={accountForm.balance} onChange={e => setAccountForm(f => ({ ...f, balance: e.target.value }))} />
             </div>
-            <div className="grid w-full gap-3">
-                <Label htmlFor="account-currency">Currency</Label>
-                <Input id="account-currency" name="currency" placeholder="Currency" required value={accountForm.currency} onChange={e => setAccountForm(f => ({ ...f, currency: e.target.value }))} />
-            </div>
+            <SearchDropdown
+                id="account-currency"
+                label="Currency"
+                placeholder="Currency"
+                value={accountForm.currency}
+                onChange={(value) => setAccountForm(f => ({ ...f, currency: value }))}
+                options={availableCurrencies}
+                required
+                createNewLabel="Create currency"
+                onCreateNew={(value) => setAccountForm(f => ({ ...f, currency: value }))}
+            />
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
@@ -232,7 +251,7 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
     );
 }
 
-export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Debt", showDelete, onDelete }: {
+export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Debt", showDelete, onDelete, availableCurrencies = [], availablePersons = [] }: {
     initial?: { description: string; withWho: string; amount: string | number; currency: string; theyPayMe: boolean; details?: string };
     loading: boolean;
     deleting?: boolean;
@@ -241,6 +260,8 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
     submitLabel?: string;
     showDelete?: boolean;
     onDelete?: () => void;
+    availableCurrencies?: string[];
+    availablePersons?: string[];
 }) {
     const [debtFormState, setDebtFormState] = useState({
         description: initial?.description || '',
@@ -250,6 +271,7 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
         theyPayMe: initial?.theyPayMe || false,
         details: initial?.details || '',
     });
+    
     const isValid = debtFormState.description && debtFormState.withWho && debtFormState.amount && debtFormState.currency;
     const isChanged =
         debtFormState.description !== (initial?.description || '') ||
@@ -287,18 +309,32 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
                 <Label htmlFor="debt-description">Description</Label>
                 <Input id="debt-description" name="description" placeholder="Description" required value={debtFormState.description} onChange={e => setDebtFormState(f => ({ ...f, description: e.target.value }))} />
             </div>
-            <div className="grid w-full gap-3">
-                <Label htmlFor="debt-withWho">With Who</Label>
-                <Input id="debt-withWho" name="withWho" placeholder="With Who" required value={debtFormState.withWho} onChange={e => setDebtFormState(f => ({ ...f, withWho: e.target.value }))} />
-            </div>
+            <SearchDropdown
+                id="debt-withWho"
+                label="With Who"
+                placeholder="Person's name"
+                value={debtFormState.withWho}
+                onChange={(value) => setDebtFormState(f => ({ ...f, withWho: value }))}
+                options={availablePersons}
+                required
+                createNewLabel="Add person"
+                onCreateNew={(value) => setDebtFormState(f => ({ ...f, withWho: value }))}
+            />
             <div className="grid w-full gap-3">
                 <Label htmlFor="debt-amount">Amount</Label>
                 <Input id="debt-amount" name="amount" placeholder="Amount" type="number" required value={debtFormState.amount} onChange={e => setDebtFormState(f => ({ ...f, amount: e.target.value }))} />
             </div>
-            <div className="grid w-full gap-3">
-                <Label htmlFor="debt-currency">Currency</Label>
-                <Input id="debt-currency" name="currency" placeholder="Currency" required value={debtFormState.currency} onChange={e => setDebtFormState(f => ({ ...f, currency: e.target.value }))} />
-            </div>
+            <SearchDropdown
+                id="debt-currency"
+                label="Currency"
+                placeholder="Currency"
+                value={debtFormState.currency}
+                onChange={(value) => setDebtFormState(f => ({ ...f, currency: value }))}
+                options={availableCurrencies}
+                required
+                createNewLabel="Create currency"
+                onCreateNew={(value) => setDebtFormState(f => ({ ...f, currency: value }))}
+            />
             <div className="grid w-full gap-3">
                 <Label htmlFor="debt-details">Additional Details</Label>
                 <Textarea
@@ -333,7 +369,7 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
     );
 }
 
-export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Currency", showDelete, onDelete }: {
+export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Currency", showDelete, onDelete, availableCurrencies = [] }: {
     initial?: {
         currency: string;
         value?: number;
@@ -346,11 +382,13 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
     submitLabel?: string;
     showDelete?: boolean;
     onDelete?: () => void;
+    availableCurrencies?: string[];
 }) {
     const [currencyValue, setCurrencyValue] = useState(initial?.currency || '');
+    const accountBreakdown = initial?.accountBreakdown || [];
+    
     const isValid = !!currencyValue;
     const isChanged = currencyValue !== (initial?.currency || '');
-    const accountBreakdown = initial?.accountBreakdown || [];
 
     useEffect(() => {
         if (initial) setCurrencyValue(initial.currency || '');
@@ -363,10 +401,17 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
 
     return (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div className="grid w-full gap-3">
-                <Label htmlFor="currency-currency">Currency</Label>
-                <Input id="currency-currency" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
-            </div>
+            <SearchDropdown
+                id="currency-currency"
+                label="Currency"
+                placeholder="Currency"
+                value={currencyValue}
+                onChange={setCurrencyValue}
+                options={availableCurrencies}
+                required
+                createNewLabel="Create currency"
+                onCreateNew={setCurrencyValue}
+            />
 
             {/* Account breakdown section */}
             {accountBreakdown.length > 0 && (

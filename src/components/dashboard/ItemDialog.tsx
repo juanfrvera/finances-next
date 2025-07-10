@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
-export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived }: {
+export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [], availablePersons = [] }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
@@ -23,6 +23,8 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     onItemDeleted: (id: string) => void;
     onItemArchived?: (item: any) => void;
     onItemUnarchived?: (item: any) => void;
+    availableCurrencies?: string[];
+    availablePersons?: string[];
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -39,6 +41,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemDeleted={onItemDeleted}
             onItemArchived={onItemArchived}
             onItemUnarchived={onItemUnarchived}
+            availableCurrencies={availableCurrencies}
         />;
     }
 
@@ -52,6 +55,8 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemDeleted={onItemDeleted}
             onItemArchived={onItemArchived}
             onItemUnarchived={onItemUnarchived}
+            availableCurrencies={availableCurrencies}
+            availablePersons={availablePersons}
         />;
     }
 
@@ -128,9 +133,9 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     // Handle other item types with direct edit
     let form: React.ReactNode = null;
     if (item.type === 'service') {
-        form = <ServiceForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
+        form = <ServiceForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} availableCurrencies={availableCurrencies} />;
     } else if (item.type === 'currency') {
-        form = <CurrencyForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} />;
+        form = <CurrencyForm initial={item} loading={loading} deleting={deleting} onSubmit={handleSave} onCancel={handleCancel} submitLabel={loading ? "Saving..." : "Save"} availableCurrencies={availableCurrencies} />;
     }
 
     return (
