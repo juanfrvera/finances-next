@@ -49,6 +49,20 @@ interface AuthResult {
     };
 }
 
+// User data we include in the JWT payload (before signing)
+interface TokenData {
+    userId: string;
+    username: string;
+    email: string;
+}
+
+// Complete JWT payload after signing (includes exp, iat added by JWT library)
+// This is what we get back when we decode the token with jwt.verify()
+interface TokenPayload extends TokenData {
+    exp: number;    // JWT expiration timestamp (seconds since epoch) - added by jwt.sign()
+    iat: number;    // JWT issued at timestamp (seconds since epoch) - added by jwt.sign()
+}
+
 // Authentication server actions
 export async function loginUser(username: string, password: string): Promise<AuthResult> {
     try {
@@ -68,12 +82,13 @@ export async function loginUser(username: string, password: string): Promise<Aut
 
         // Create JWT token
         const cookieConfig = getCookieConfig();
+        const payload: TokenData = {
+            userId: user._id.toString(),
+            username: user.username,
+            email: user.email
+        };
         const token = jwt.sign(
-            {
-                userId: user._id.toString(),
-                username: user.username,
-                email: user.email
-            },
+            payload,
             JWT_SECRET,
             { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
         );
@@ -156,12 +171,13 @@ export async function signupUser(
 
         // Create JWT token
         const cookieConfig = getCookieConfig();
+        const payload: TokenData = {
+            userId: result.insertedId.toString(),
+            username,
+            email
+        };
         const token = jwt.sign(
-            {
-                userId: result.insertedId.toString(),
-                username,
-                email
-            },
+            payload,
             JWT_SECRET,
             { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
         );
@@ -226,7 +242,17 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
             return null;
         }
 
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+
+        // Double-check token expiration (jwt.verify should catch this, but adding extra safety)
+        // JWT exp is in seconds, Date.now() is in milliseconds
+        if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+            console.log("Token has expired, clearing cookie");
+            // Clear the expired cookie
+            const cookieStore = await cookies();
+            cookieStore.delete(COOKIE_NAME);
+            return null;
+        }
 
         // Extend cookie expiration if configured to do so
         await extendCookieExpirationIfConfigured(token);
@@ -237,6 +263,15 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
             email: decoded.email,
         };
     } catch (error) {
+        // Handle JWT verification errors
+        if (error instanceof jwt.JsonWebTokenError) {
+            console.log("Invalid JWT token, clearing cookie");
+            // Clear invalid cookie
+            const cookieStore = await cookies();
+            cookieStore.delete(COOKIE_NAME);
+            return null;
+        }
+
         console.error("Get current user error:", error);
         return null;
     }
@@ -283,12 +318,13 @@ export async function refreshAuthToken(): Promise<boolean> {
         const cookieConfig = getCookieConfig();
 
         // Create a new token with extended expiration
+        const payload: TokenData = {
+            userId: user.id,
+            username: user.username,
+            email: user.email
+        };
         const newToken = jwt.sign(
-            {
-                userId: user.id,
-                username: user.username,
-                email: user.email
-            },
+            payload,
             JWT_SECRET,
             { expiresIn: cookieConfig.expiresIn } as jwt.SignOptions
         );
