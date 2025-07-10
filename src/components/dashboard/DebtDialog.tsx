@@ -95,11 +95,8 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
 
             // Update item with new payment status
             const paymentStatus = await getDebtPaymentStatus(item._id);
-            const updated = await updateItemToDb(item); // Refresh the item
-            if (updated) {
-                const updatedWithStatus = { ...updated, ...paymentStatus };
-                onItemUpdated(updatedWithStatus);
-            }
+            const updatedWithStatus = { ...item, ...paymentStatus };
+            onItemUpdated(updatedWithStatus);
 
             showToast.update(toastId, 'Payment recorded successfully!', 'success');
             setActiveView('summary'); // Return to summary view
@@ -267,6 +264,14 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                             <h3 className="text-lg font-semibold mb-2">{getDebtSummaryText(item)}</h3>
                             {item.description && (
                                 <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
+                            )}
+
+                            {/* Additional Details */}
+                            {item.details && (
+                                <div className="mb-3">
+                                    <h4 className="text-sm font-medium text-foreground mb-1">Additional Details:</h4>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.details}</p>
+                                </div>
                             )}
 
                             {/* Payment Status Badge */}

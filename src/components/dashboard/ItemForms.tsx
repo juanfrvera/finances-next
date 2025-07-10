@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -18,7 +19,7 @@ function Spinner() {
 
 function DatePicker({ date, onDateChange }: { date?: Date; onDateChange: (date: Date | undefined) => void }) {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-US', {
             weekday: 'short',
@@ -232,10 +233,10 @@ export function AccountForm({ initial, loading, deleting, onSubmit, onCancel, su
 }
 
 export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Debt", showDelete, onDelete }: {
-    initial?: { description: string; withWho: string; amount: string | number; currency: string; theyPayMe: boolean };
+    initial?: { description: string; withWho: string; amount: string | number; currency: string; theyPayMe: boolean; details?: string };
     loading: boolean;
     deleting?: boolean;
-    onSubmit: (data: { description: string; withWho: string; amount: number; currency: string; theyPayMe: boolean }) => void;
+    onSubmit: (data: { description: string; withWho: string; amount: number; currency: string; theyPayMe: boolean; details?: string }) => void;
     onCancel?: () => void;
     submitLabel?: string;
     showDelete?: boolean;
@@ -247,6 +248,7 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
         amount: initial?.amount?.toString() || '',
         currency: initial?.currency || '',
         theyPayMe: initial?.theyPayMe || false,
+        details: initial?.details || '',
     });
     const isValid = debtFormState.description && debtFormState.withWho && debtFormState.amount && debtFormState.currency;
     const isChanged =
@@ -254,7 +256,8 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
         debtFormState.withWho !== (initial?.withWho || '') ||
         debtFormState.amount !== (initial?.amount?.toString() || '') ||
         debtFormState.currency !== (initial?.currency || '') ||
-        debtFormState.theyPayMe !== (initial?.theyPayMe || false);
+        debtFormState.theyPayMe !== (initial?.theyPayMe || false) ||
+        debtFormState.details !== (initial?.details || '');
     useEffect(() => {
         if (initial) {
             setDebtFormState({
@@ -263,6 +266,7 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
                 amount: initial.amount?.toString() || '',
                 currency: initial.currency || '',
                 theyPayMe: initial.theyPayMe || false,
+                details: initial.details || '',
             });
         }
     }, [initial]);
@@ -274,6 +278,7 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
             amount: Number(debtFormState.amount),
             currency: debtFormState.currency,
             theyPayMe: debtFormState.theyPayMe,
+            details: debtFormState.details,
         });
     }
     return (
@@ -293,6 +298,17 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
             <div className="grid w-full gap-3">
                 <Label htmlFor="debt-currency">Currency</Label>
                 <Input id="debt-currency" name="currency" placeholder="Currency" required value={debtFormState.currency} onChange={e => setDebtFormState(f => ({ ...f, currency: e.target.value }))} />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="debt-details">Additional Details</Label>
+                <Textarea
+                    id="debt-details"
+                    name="details"
+                    placeholder="Enter any additional details about this debt (optional)..."
+                    value={debtFormState.details}
+                    onChange={e => setDebtFormState(f => ({ ...f, details: e.target.value }))}
+                    rows={3}
+                />
             </div>
             <div className="flex items-center gap-2">
                 <input type="checkbox" id="debt-theyPayMe" name="theyPayMe" checked={debtFormState.theyPayMe} onChange={e => setDebtFormState(f => ({ ...f, theyPayMe: e.target.checked }))} />
@@ -318,10 +334,10 @@ export function DebtForm({ initial, loading, deleting, onSubmit, onCancel, submi
 }
 
 export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Currency", showDelete, onDelete }: {
-    initial?: { 
-        currency: string; 
-        value?: number; 
-        accountBreakdown?: { id: string; name: string; balance: number }[] 
+    initial?: {
+        currency: string;
+        value?: number;
+        accountBreakdown?: { id: string; name: string; balance: number }[]
     };
     loading: boolean;
     deleting?: boolean;
@@ -335,23 +351,23 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
     const isValid = !!currencyValue;
     const isChanged = currencyValue !== (initial?.currency || '');
     const accountBreakdown = initial?.accountBreakdown || [];
-    
+
     useEffect(() => {
         if (initial) setCurrencyValue(initial.currency || '');
     }, [initial]);
-    
+
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         onSubmit({ currency: currencyValue });
     }
-    
+
     return (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <div className="grid w-full gap-3">
                 <Label htmlFor="currency-currency">Currency</Label>
                 <Input id="currency-currency" name="currency" placeholder="Currency" required value={currencyValue} onChange={e => setCurrencyValue(e.target.value)} />
             </div>
-            
+
             {/* Account breakdown section */}
             {accountBreakdown.length > 0 && (
                 <div className="grid w-full gap-3">
@@ -376,7 +392,7 @@ export function CurrencyForm({ initial, loading, deleting, onSubmit, onCancel, s
                     </div>
                 </div>
             )}
-            
+
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (
                     <Button type="submit" className="flex-1" disabled={!isValid || loading || deleting}>
@@ -598,7 +614,7 @@ export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCan
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!isValid) return;
-        
+
         onSubmit({
             amount: Number(form.amount),
             note: form.note || "Debt payment",
@@ -614,15 +630,15 @@ export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCan
             <div className="grid w-full gap-3">
                 <Label htmlFor="payment-amount">Payment Amount ({currency})</Label>
                 <div className="flex gap-2">
-                    <Input 
-                        id="payment-amount" 
-                        name="amount" 
-                        placeholder="0.00" 
-                        type="number" 
+                    <Input
+                        id="payment-amount"
+                        name="amount"
+                        placeholder="0.00"
+                        type="number"
                         step="0.01"
-                        required 
-                        value={form.amount} 
-                        onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} 
+                        required
+                        value={form.amount}
+                        onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                     />
                     <Button
                         type="button"
@@ -637,18 +653,18 @@ export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCan
             </div>
             <div className="grid w-full gap-3">
                 <Label htmlFor="payment-note">Note (optional)</Label>
-                <Input 
-                    id="payment-note" 
-                    name="note" 
-                    placeholder="Payment description..." 
-                    value={form.note} 
-                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))} 
+                <Input
+                    id="payment-note"
+                    name="note"
+                    placeholder="Payment description..."
+                    value={form.note}
+                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                 />
             </div>
             <div className="flex gap-2 mt-2">
-                <Button 
-                    type="submit" 
-                    className="flex-1" 
+                <Button
+                    type="submit"
+                    className="flex-1"
                     disabled={!isValid || loading}
                 >
                     {loading && <Spinner />} {loading ? "Recording..." : "Record Payment"}
