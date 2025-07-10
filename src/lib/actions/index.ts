@@ -8,6 +8,9 @@ export {
     getCurrentUserId,
     refreshAuthToken,
     getAuthConfig,
+    getServerComponentUser,
+    getServerComponentUserId,
+    getUserFromToken,
 } from './auth';
 
 // Item management actions

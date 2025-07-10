@@ -307,6 +307,80 @@ export async function getCurrentUserId(): Promise<string> {
     return user.id;
 }
 
+// Safe functions for Server Components - these avoid direct cookie access
+export async function getUserFromToken(token: string): Promise<{ id: string; username: string; email: string } | null> {
+    try {
+        if (!token) {
+            return null;
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+
+        // Double-check token expiration (jwt.verify should catch this, but adding extra safety)
+        // JWT exp is in seconds, Date.now() is in milliseconds
+        if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+            console.log("Token has expired");
+            return null;
+        }
+
+        return {
+            id: decoded.userId,
+            username: decoded.username,
+            email: decoded.email,
+        };
+    } catch (error) {
+        // Handle JWT verification errors
+        if (error instanceof jwt.JsonWebTokenError) {
+            console.log("Invalid JWT token");
+            return null;
+        }
+
+        console.error("Get user from token error:", error);
+        return null;
+    }
+}
+
+// Server Component safe authentication - doesn't use cookies() directly
+export async function getServerComponentUser(): Promise<{ id: string; username: string; email: string } | null> {
+    try {
+        // Use the cookies() function from next/headers in a way that works in Server Components
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        const token = cookieStore.get(COOKIE_NAME)?.value;
+
+        if (!token) {
+            // In development mode, return test user if configured
+            if (process.env.TEST_USER_ID) {
+                return {
+                    id: process.env.TEST_USER_ID,
+                    username: "testuser",
+                    email: "test@example.com"
+                };
+            }
+            return null;
+        }
+
+        return await getUserFromToken(token);
+    } catch (error) {
+        console.error("Get server component user error:", error);
+        // In development mode, return test user if configured
+        if (process.env.TEST_USER_ID) {
+            return {
+                id: process.env.TEST_USER_ID,
+                username: "testuser",
+                email: "test@example.com"
+            };
+        }
+        return null;
+    }
+}
+
+// Server Component safe version of getCurrentUserId
+export async function getServerComponentUserId(): Promise<string | null> {
+    const user = await getServerComponentUser();
+    return user?.id || null;
+}
+
 // Function to manually refresh the authentication token
 export async function refreshAuthToken(): Promise<boolean> {
     try {
