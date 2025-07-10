@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DebtForm, DebtPaymentForm } from "./ItemForms";
 import TransactionsList from "./TransactionsList";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateItemToDb, deleteItemFromDb, archiveItem, unarchiveItem, createDebtPayment, getDebtPaymentStatus } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { MoreVertical, X, Trash2, Archive, CreditCard, Edit } from "lucide-react";
@@ -62,20 +62,29 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
     const [unarchiving, setUnarchiving] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [activeView, setActiveView] = useState<'summary' | 'edit' | 'payments'>('summary');
+    const [currentItem, setCurrentItem] = useState(item);
+
+    // Update local state when item prop changes
+    useEffect(() => {
+        setCurrentItem(item);
+    }, [item]);
 
     async function handleSave(data: any) {
         setLoading(true);
         const toastId = showToast.loading(toastMessages.saving);
         try {
-            const updated = await updateItemToDb({ ...item, ...data });
+            const updated = await updateItemToDb({ ...currentItem, ...data });
 
             if (updated) {
                 // Refresh payment status
                 const paymentStatus = await getDebtPaymentStatus(updated._id);
                 const updatedWithStatus = { ...updated, ...paymentStatus };
+                setCurrentItem(updatedWithStatus);
                 onItemUpdated(updatedWithStatus);
             } else {
-                onItemUpdated({ ...item, ...data });
+                const updatedItem = { ...currentItem, ...data };
+                setCurrentItem(updatedItem);
+                onItemUpdated(updatedItem);
             }
 
             showToast.update(toastId, toastMessages.saved, 'success');
@@ -91,11 +100,14 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         setPaymentLoading(true);
         const toastId = showToast.loading('Recording payment...');
         try {
-            await createDebtPayment(item._id, data.amount, data.note);
+            await createDebtPayment(currentItem._id, data.amount, data.note);
 
             // Update item with new payment status
-            const paymentStatus = await getDebtPaymentStatus(item._id);
-            const updatedWithStatus = { ...item, ...paymentStatus };
+            const paymentStatus = await getDebtPaymentStatus(currentItem._id);
+            const updatedWithStatus = { ...currentItem, ...paymentStatus };
+
+            // Update both local state and parent state
+            setCurrentItem(updatedWithStatus);
             onItemUpdated(updatedWithStatus);
 
             showToast.update(toastId, 'Payment recorded successfully!', 'success');
@@ -111,8 +123,8 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         setDeleting(true);
         const toastId = showToast.loading(toastMessages.deleting);
         try {
-            await deleteItemFromDb(item._id);
-            onItemDeleted(item._id);
+            await deleteItemFromDb(currentItem._id);
+            onItemDeleted(currentItem._id);
             showToast.update(toastId, toastMessages.deleted, 'success');
         } catch (error) {
             showToast.update(toastId, toastMessages.deleteError, 'error');
@@ -128,9 +140,9 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         setArchiving(true);
         const toastId = showToast.loading('Archiving debt...');
         try {
-            const archived = await archiveItem(item._id);
+            const archived = await archiveItem(currentItem._id);
             // Preserve payment status
-            const archivedWithStatus = { ...archived, ...item };
+            const archivedWithStatus = { ...archived, ...currentItem };
             onItemArchived(archivedWithStatus);
             showToast.update(toastId, 'Debt archived successfully!', 'success');
         } catch (error) {
@@ -147,7 +159,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         setUnarchiving(true);
         const toastId = showToast.loading('Unarchiving debt...');
         try {
-            const unarchived = await unarchiveItem(item._id);
+            const unarchived = await unarchiveItem(currentItem._id);
 
             if (unarchived) {
                 // Refresh payment status
@@ -155,7 +167,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 const unarchivedWithStatus = { ...unarchived, ...paymentStatus };
                 onItemUnarchived(unarchivedWithStatus);
             } else {
-                onItemUnarchived(item);
+                onItemUnarchived(currentItem);
             }
 
             showToast.update(toastId, 'Debt unarchived successfully!', 'success');
@@ -171,9 +183,9 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
         setActiveView('summary');
     }
 
-    if (!item) return null;
+    if (!currentItem) return null;
 
-    const remainingAmount = item.remainingAmount || item.amount;
+    const remainingAmount = currentItem.remainingAmount || currentItem.amount;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,7 +206,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            {item.archived ? (
+                            {currentItem.archived ? (
                                 onItemUnarchived && (
                                     <DropdownMenuItem
                                         onSelect={handleUnarchive}
@@ -261,30 +273,30 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                     <div className="space-y-6">
                         {/* Debt Summary */}
                         <div className="bg-muted/50 rounded-lg p-4">
-                            <h3 className="text-lg font-semibold mb-2">{getDebtSummaryText(item)}</h3>
-                            {item.description && (
-                                <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
+                            <h3 className="text-lg font-semibold mb-2">{getDebtSummaryText(currentItem)}</h3>
+                            {currentItem.description && (
+                                <p className="text-sm text-muted-foreground mb-3">{currentItem.description}</p>
                             )}
 
                             {/* Additional Details */}
-                            {item.details && (
+                            {currentItem.details && (
                                 <div className="mb-3">
                                     <h4 className="text-sm font-medium text-foreground mb-1">Additional Details:</h4>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.details}</p>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentItem.details}</p>
                                 </div>
                             )}
 
                             {/* Payment Status Badge */}
-                            {item.paymentStatus && (
+                            {currentItem.paymentStatus && (
                                 <div className="mb-3">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.paymentStatus === 'paid'
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${currentItem.paymentStatus === 'paid'
                                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                        : item.paymentStatus === 'partially_paid'
+                                        : currentItem.paymentStatus === 'partially_paid'
                                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                         }`}>
-                                        {item.paymentStatus === 'paid' ? '✅ Fully Paid' :
-                                            item.paymentStatus === 'partially_paid' ? '🟡 Partially Paid' :
+                                        {currentItem.paymentStatus === 'paid' ? '✅ Fully Paid' :
+                                            currentItem.paymentStatus === 'partially_paid' ? '🟡 Partially Paid' :
                                                 '🔴 Unpaid'}
                                     </span>
                                 </div>
@@ -317,12 +329,13 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                         <div className="border-t pt-4">
                             <h3 className="text-sm font-medium mb-2">Payment History</h3>
                             <TransactionsList
-                                itemId={item._id}
-                                currency={item.currency}
+                                itemId={currentItem._id}
+                                currency={currentItem.currency}
                                 onRefresh={async () => {
                                     // Refresh payment status when transactions change
-                                    const paymentStatus = await getDebtPaymentStatus(item._id);
-                                    const updatedWithStatus = { ...item, ...paymentStatus };
+                                    const paymentStatus = await getDebtPaymentStatus(currentItem._id);
+                                    const updatedWithStatus = { ...currentItem, ...paymentStatus };
+                                    setCurrentItem(updatedWithStatus);
                                     onItemUpdated(updatedWithStatus);
                                 }}
                             />
@@ -333,7 +346,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 {activeView === 'edit' && (
                     <div className="space-y-6">
                         <DebtForm
-                            initial={item}
+                            initial={currentItem}
                             loading={loading}
                             deleting={deleting}
                             onSubmit={handleSave}
@@ -346,7 +359,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
                 {activeView === 'payments' && (
                     <DebtPaymentForm
                         debtAmount={remainingAmount}
-                        currency={item.currency}
+                        currency={currentItem.currency}
                         loading={paymentLoading}
                         onSubmit={handlePayment}
                         onCancel={handleCancel}
