@@ -29,6 +29,9 @@ const CurrencyEvolutionChart = dynamic(() => import("./CurrencyEvolutionChart"),
     loading: () => <div className="flex items-center justify-center h-32">Loading evolution chart...</div>
 });
 
+// Filter options type
+type FilterOption = 'all' | 'debts' | 'services' | 'accounts' | 'currencies';
+
 interface DashboardClientProps {
     items: any[];
     archivedItems: any[];
@@ -160,9 +163,42 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
     } | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<any>(null);
+    const [filterOptions, setFilterOptions] = useState<Set<FilterOption>>(new Set(['all'])); // Track selected filters
 
     // TanStack Query mutations for cache invalidation
     const { invalidateCurrency } = useCurrencyEvolutionMutations();
+
+    // Handle filter option toggle
+    const handleFilterToggle = (option: FilterOption) => {
+        setFilterOptions(prev => {
+            const newSet = new Set(prev);
+            
+            if (option === 'all') {
+                // If clicking 'all', select only 'all' and deselect others
+                return new Set(['all']);
+            } else {
+                // If clicking a specific option
+                if (newSet.has('all')) {
+                    // If 'all' is selected, deselect it and select the clicked option
+                    newSet.delete('all');
+                    newSet.add(option);
+                } else {
+                    // Toggle the specific option
+                    if (newSet.has(option)) {
+                        newSet.delete(option);
+                        // If no specific options remain, default to 'all'
+                        if (newSet.size === 0) {
+                            newSet.add('all');
+                        }
+                    } else {
+                        newSet.add(option);
+                    }
+                }
+            }
+            
+            return newSet;
+        });
+    };
 
     // Close context menu when clicking outside
     useEffect(() => {
@@ -692,6 +728,16 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
         return isNewestFirst ? bDate - aDate : aDate - bDate;
     });
 
+    // Filter items based on the selected filter option
+    const filteredItems = sortedItems.filter(item => {
+        if (filterOptions.has('all')) return true;
+        if (filterOptions.has('debts') && item.type === 'debt') return true;
+        if (filterOptions.has('services') && item.type === 'service') return true;
+        if (filterOptions.has('accounts') && item.type === 'account') return true;
+        if (filterOptions.has('currencies') && item.type === 'currency') return true;
+        return false;
+    });
+
     return (
         <div>
             <ItemDialog
@@ -790,32 +836,72 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                     </div>
                 </div>
             )}
-            <div className="flex justify-end mb-2 gap-2 items-center">
-                <button
-                    className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
-                    onClick={() => setShowArchived(v => !v)}
-                >
-                    {showArchived ? `Active Items (${clientItems.length})` : `Archived Items (${clientArchivedItems.length})`}
-                </button>
-                <button
-                    className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
-                    onClick={cycleSortMode}
-                >
-                    Sort: {sortMode === 'newest' ? 'Newest first' : sortMode === 'oldest' ? 'Oldest first' : 'Custom order'}
-                </button>
-                <button
-                    className="p-1 rounded hover:bg-secondary/80 focus:outline-none transition-colors"
-                    aria-label={showJson ? 'Hide all JSON' : 'Show all JSON'}
-                    onClick={() => setShowJson(v => !v)}
-                >
-                    {/* Dev mode icon: code brackets */}
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${showJson ? 'text-blue-600' : 'text-muted-foreground'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
-                    </svg>
-                </button>
-                <LogoutButton />
-                <ThemeToggle />
+            
+            {/* Header with filter on left and controls on right */}
+            <div className="flex justify-between items-center mb-4">
+                {/* Filter options - Top Left */}
+                <div className="flex">
+                    <button
+                        className={`px-3 py-1 rounded-l ${filterOptions.has('all') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors border-r border-border/50`}
+                        onClick={() => handleFilterToggle('all')}
+                    >
+                        All
+                    </button>
+                    <button
+                        className={`px-3 py-1 ${filterOptions.has('debts') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors border-r border-border/50`}
+                        onClick={() => handleFilterToggle('debts')}
+                    >
+                        Debts
+                    </button>
+                    <button
+                        className={`px-3 py-1 ${filterOptions.has('services') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors border-r border-border/50`}
+                        onClick={() => handleFilterToggle('services')}
+                    >
+                        Services
+                    </button>
+                    <button
+                        className={`px-3 py-1 ${filterOptions.has('accounts') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors border-r border-border/50`}
+                        onClick={() => handleFilterToggle('accounts')}
+                    >
+                        Accounts
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded-r ${filterOptions.has('currencies') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors`}
+                        onClick={() => handleFilterToggle('currencies')}
+                    >
+                        Currencies
+                    </button>
+                </div>
+                
+                {/* Existing controls - Top Right */}
+                <div className="flex gap-2 items-center">
+                    <button
+                        className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
+                        onClick={() => setShowArchived(v => !v)}
+                    >
+                        {showArchived ? `Active Items (${clientItems.length})` : `Archived Items (${clientArchivedItems.length})`}
+                    </button>
+                    <button
+                        className="px-3 py-1 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
+                        onClick={cycleSortMode}
+                    >
+                        Sort: {sortMode === 'newest' ? 'Newest first' : sortMode === 'oldest' ? 'Oldest first' : 'Custom order'}
+                    </button>
+                    <button
+                        className="p-1 rounded hover:bg-secondary/80 focus:outline-none transition-colors"
+                        aria-label={showJson ? 'Hide all JSON' : 'Show all JSON'}
+                        onClick={() => setShowJson(v => !v)}
+                    >
+                        {/* Dev mode icon: code brackets */}
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${showJson ? 'text-blue-600' : 'text-muted-foreground'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
+                        </svg>
+                    </button>
+                    <LogoutButton />
+                    <ThemeToggle />
+                </div>
             </div>
+            
             {/* CSS Grid masonry layout */}
             <div className="dashboard-grid mt-4">
                 <AddItemDialog 
@@ -823,7 +909,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                     availableCurrencies={availableCurrencies}
                     availablePersons={availablePersons}
                 />
-                {sortedItems.map((item, idx) => {
+                {filteredItems.map((item, idx) => {
                     const itemId = item._id?.toString() ?? `item-${idx}`;
                     const cardSize = cardSizes[itemId] || { width: 1, height: 1 }; // Default to 1x1
                     const isExpanded = cardSize.width > 1 || cardSize.height > 1;
