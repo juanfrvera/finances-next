@@ -32,6 +32,8 @@ const CurrencyEvolutionChart = dynamic(() => import("./CurrencyEvolutionChart"),
 interface DashboardClientProps {
     items: any[];
     archivedItems: any[];
+    availableCurrencies: string[];
+    availablePersons: string[];
 }
 
 // Helper function to format money with smaller decimals
@@ -108,27 +110,35 @@ function getDebtSummaryText(item: any) {
     }
 }
 
-export default function DashboardClient({ items, archivedItems }: DashboardClientProps) {
+export default function DashboardClient({ items, archivedItems, availableCurrencies: propsCurrencies = [], availablePersons: propsPersons = [] }: DashboardClientProps) {
     const [clientItems, setClientItems] = useState<any[]>(items);
     const [clientArchivedItems, setClientArchivedItems] = useState<any[]>(archivedItems);
     
-    // Calculate available currencies once from currency-type items only
+    // Use currencies and persons from props if provided, otherwise fall back to calculating from items
     const availableCurrencies = useMemo(() => {
+        if (propsCurrencies.length > 0) {
+            return propsCurrencies;
+        }
+        // Fallback to old method if no currencies provided
         return Array.from(new Set(
             clientItems
                 .filter(item => item.type === 'currency')
                 .map(item => item.currency)
         )).filter(Boolean).sort();
-    }, [clientItems]);
+    }, [clientItems, propsCurrencies]);
     
-    // Calculate available persons from debt items
+    // Use persons from props if provided, otherwise fall back to calculating from items
     const availablePersons = useMemo(() => {
+        if (propsPersons.length > 0) {
+            return propsPersons;
+        }
+        // Fallback to old method if no persons provided
         return Array.from(new Set(
             clientItems
                 .filter(item => item.type === 'debt' && item.withWho)
                 .map(item => item.withWho)
         )).filter(Boolean).sort();
-    }, [clientItems]);
+    }, [clientItems, propsPersons]);
     
     const [showArchived, setShowArchived] = useState(false);
     const [sortMode, setSortMode] = useState<SortMode>('newest'); // Updated sorting system

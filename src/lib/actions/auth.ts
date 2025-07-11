@@ -31,14 +31,6 @@ const getCookieConfig = () => {
 };
 
 // Types for authentication
-interface User {
-    _id: string;
-    username: string;
-    email: string;
-    password: string;
-    createdAt: string;
-}
-
 interface AuthResult {
     success: boolean;
     error?: string;

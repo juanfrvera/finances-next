@@ -1,30 +1,28 @@
 import { getDb } from "@/lib/db";
 import { getServerComponentUserId } from "@/lib/actions/auth";
+import { getCurrencies, getPersons } from "@/lib/actions/entities";
+import { CurrencyEntity, PersonEntity, DbItem, Item, PaymentStatusInfo } from "@/lib/types";
 import DashboardClient from "@/components/dashboard/DashboardClient";
 import { redirect } from "next/navigation";
+import { Db } from "mongodb";
 
 // Helper function to calculate debt payment statuses
-async function calculateDebtPaymentStatuses(db: any, debtItems: any[]) {
+async function calculateDebtPaymentStatuses(db: Db, debtItems: DbItem[]): Promise<Record<string, PaymentStatusInfo>> {
   const debtItemIds = debtItems.map((item) => item._id);
   
-  const debtPaymentStatuses: Record<string, {
-    totalPaid: number;
-    remainingAmount: number;
-    paymentStatus: 'paid' | 'partially_paid' | 'unpaid';
-    transactionCount: number;
-  }> = {};
+  const debtPaymentStatuses: Record<string, PaymentStatusInfo> = {};
 
   if (debtItemIds.length > 0) {
     const transactions = await db.collection("transactions")
       .find({ itemId: { $in: debtItemIds } })
-      .toArray() as Array<{ _id: any; itemId: string; amount: number; note: string; date: string }>;
+      .toArray();
 
     // Calculate payment status for each debt item
     debtItems.forEach(debtItem => {
       const itemId = debtItem._id;
       const debtAmount = debtItem.amount || 0;
       const itemTransactions = transactions.filter(t => t.itemId === itemId);
-      const totalPaid = itemTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+      const totalPaid = itemTransactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
       const remainingAmount = debtAmount - totalPaid;
 
       // Determine payment status
@@ -50,16 +48,16 @@ async function calculateDebtPaymentStatuses(db: any, debtItems: any[]) {
 }
 
 // Helper function to process currency items with account breakdowns
-function processCurrencyItems(items: any[], accountItems: any[]) {
+function processCurrencyItems(items: DbItem[], accountItems: DbItem[]): DbItem[] {
   return items.map((item) => {
     if (item.type === "currency") {
       const accounts = accountItems.filter((acc) => acc.currency === item.currency);
-      const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+      const sum = accounts.reduce((acc, curr) => acc + Number(curr.balance || 0), 0);
       const accountBreakdown = accounts
         .map(acc => ({
           id: acc._id,
-          name: acc.name,
-          balance: Number(acc.balance),
+          name: acc.name || '',
+          balance: Number(acc.balance || 0),
         }))
         .sort((a, b) => b.balance - a.balance); // Sort by balance descending (highest first)
       return { ...item, value: sum, accountBreakdown };
@@ -69,7 +67,7 @@ function processCurrencyItems(items: any[], accountItems: any[]) {
 }
 
 // Helper function to attach debt payment statuses to items
-function attachDebtPaymentStatuses(items: any[], debtPaymentStatuses: Record<string, any>) {
+function attachDebtPaymentStatuses(items: DbItem[], debtPaymentStatuses: Record<string, PaymentStatusInfo>): DbItem[] {
   return items.map((item) => {
     if (item.type === "debt") {
       const paymentStatus = debtPaymentStatuses[item._id] || {
@@ -85,7 +83,7 @@ function attachDebtPaymentStatuses(items: any[], debtPaymentStatuses: Record<str
 }
 
 // Helper function to process archived items
-function processArchivedItems(archivedItems: any[], debtPaymentStatuses: Record<string, any>) {
+function processArchivedItems(archivedItems: DbItem[], debtPaymentStatuses: Record<string, PaymentStatusInfo>): DbItem[] {
   return attachDebtPaymentStatuses(archivedItems, debtPaymentStatuses);
 }
 
@@ -102,12 +100,28 @@ export default async function Dashboard() {
   const db = await getDb();
   const items = await db.collection("items").find({ userId: finalUserId }).toArray();
   
+  // Load currencies and persons from database
+  let currencies: CurrencyEntity[] = [];
+  let persons: PersonEntity[] = [];
+  
+  try {
+    // These functions require auth, so we need to handle the case where userId is from TEST_USER_ID
+    if (userId) {
+      currencies = await getCurrencies();
+      persons = await getPersons();
+    }
+  } catch (error) {
+    console.log("Could not load currencies and persons:", error);
+  }
+  
   // Convert to plain objects and _id to string, ensure createDate/editDate are strings
-  const plainItems = items.map((item: any) => ({
+  const plainItems: DbItem[] = items.map((item) => ({
     ...item,
-    _id: item._id?.toString?.() ?? undefined,
-    createDate: item.createDate ? new Date(item.createDate).toISOString() : undefined,
-    editDate: item.editDate ? new Date(item.editDate).toISOString() : undefined,
+    _id: item._id?.toString?.() ?? '',
+    createDate: item.createDate ? new Date(item.createDate).toISOString() : new Date().toISOString(),
+    editDate: item.editDate ? new Date(item.editDate).toISOString() : new Date().toISOString(),
+    userId: item.userId || finalUserId,
+    type: item.type || 'account',
   }));
 
   // Separate active and archived items
@@ -136,7 +150,12 @@ export default async function Dashboard() {
           <p className="text-gray-600 mb-4">Get started by creating your first item!</p>
         </div>
       )}
-      <DashboardClient items={mappedItems} archivedItems={mappedArchivedItems} />
+      <DashboardClient 
+        items={mappedItems as Item[]} 
+        archivedItems={mappedArchivedItems as Item[]}
+        availableCurrencies={currencies.map(c => c.name).sort()}
+        availablePersons={persons.map(p => p.name).sort()}
+      />
     </div>
   );
 }

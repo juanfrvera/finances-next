@@ -36,3 +36,11 @@ export {
 export {
     getCurrencyEvolutionData,
 } from './currency';
+
+// Entity management actions
+export {
+    createCurrency,
+    getCurrencies,
+    createPerson,
+    getPersons,
+} from './entities';
