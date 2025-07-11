@@ -56,7 +56,7 @@ function getDebtSummaryText(item: any) {
     const personName = item.withWho || item.name || 'Someone';
     const totalAmount = item.amount || 0;
     const totalPaid = item.totalPaid || 0;
-    const remainingAmount = item.remainingAmount || totalAmount;
+    const remainingAmount = totalAmount - totalPaid; // Calculate remaining amount instead of relying on stored value
     const currency = item.currency || 'USD';
     const theyPayMe = item.theyPayMe; // true = they owe me, false = I owe them
 
@@ -71,7 +71,7 @@ function getDebtSummaryText(item: any) {
         } else {
             return {
                 text: `You owe`,
-                amount: remainingAmount,
+                amount: totalAmount,
                 currency,
                 toWho: personName
             };
@@ -80,14 +80,14 @@ function getDebtSummaryText(item: any) {
         // Fully paid - show past tense with full amount
         if (theyPayMe) {
             return {
-                text: `${personName} paid you`,
+                text: `${personName} fully paid you`,
                 amount: totalAmount,
                 currency,
                 isPaid: true
             };
         } else {
             return {
-                text: `You paid`,
+                text: `You fully paid`,
                 amount: totalAmount,
                 currency,
                 toWho: personName,
