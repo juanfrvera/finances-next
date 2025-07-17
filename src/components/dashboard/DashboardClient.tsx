@@ -790,7 +790,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                         {contextMenu.item.archived ? 'Unarchive' : 'Archive'}
                     </button>
                     <button
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-destructive hover:text-destructive-foreground flex items-center gap-2 text-destructive"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"
                         onClick={() => handleDeleteClick(contextMenu.item)}
                     >
                         <Trash2 className="h-4 w-4" />
