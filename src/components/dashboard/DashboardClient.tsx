@@ -1438,6 +1438,11 @@ function Service({ data, showJson }: any) {
             <div className="text-sm text-muted-foreground mb-2">
                 {data.isManual ? 'Manual payment' : 'Payment is automatic'}
             </div>
+            {data.notes && (
+                <div className="text-xs text-muted-foreground mt-2 max-w-full break-words">
+                    {data.notes}
+                </div>
+            )}
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
         </div>
     );

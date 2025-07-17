@@ -226,7 +226,7 @@ function DeleteConfirmationDialog({
     );
 }
 
-export default function AccountDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [] }: {
+export default function AccountDialog({ open, onOpenChange, item: initialItem, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [] }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
@@ -242,6 +242,12 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
     const [unarchiving, setUnarchiving] = useState(false);
     const [selectedAction, setSelectedAction] = useState<AccountAction>(null);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [item, setItem] = useState(initialItem);
+
+    // Update local item state when initialItem changes
+    useEffect(() => {
+        setItem(initialItem);
+    }, [initialItem]);
 
     // Reset selectedAction when dialog opens
     useEffect(() => {
@@ -255,6 +261,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         const toastId = showToast.loading(toastMessages.saving);
         try {
             const updated = await updateItemToDb({ ...item, ...data });
+            setItem(updated);
             onItemUpdated(updated);
             showToast.update(toastId, toastMessages.saved, 'success');
         } catch (error) {
@@ -270,6 +277,7 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
         const toastId = showToast.loading('Updating balance...');
         try {
             const updated = await updateAccountBalance(item._id, data.newBalance, data.note);
+            setItem(updated);
             onItemUpdated(updated);
             showToast.update(toastId, 'Balance updated successfully!', 'success');
         } catch (error) {
@@ -288,7 +296,10 @@ export default function AccountDialog({ open, onOpenChange, item, onItemUpdated,
 
             // Calculate the new balance with proper rounding
             const newBalance = Math.round(((item.balance || 0) + data.amount) * 100) / 100;
-            const updated = { ...item, balance: newBalance };
+            const updated = { ...item, balance: newBalance, editDate: new Date().toISOString() };
+            
+            // Update both local state and parent state
+            setItem(updated);
             onItemUpdated(updated);
 
             // Refresh transactions list

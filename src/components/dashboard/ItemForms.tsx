@@ -86,10 +86,10 @@ function DatePicker({ date, onDateChange }: { date?: Date; onDateChange: (date: 
 }
 
 export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Service", showDelete, onDelete, availableCurrencies = [] }: {
-    initial?: { name: string; cost: string | number; currency: string; isManual: boolean };
+    initial?: { name: string; cost: string | number; currency: string; isManual: boolean; notes?: string };
     loading: boolean;
     deleting?: boolean;
-    onSubmit: (data: { name: string; cost: number; currency: string; isManual: boolean }) => void;
+    onSubmit: (data: { name: string; cost: number; currency: string; isManual: boolean; notes?: string }) => void;
     onCancel?: () => void;
     submitLabel?: string;
     showDelete?: boolean;
@@ -101,6 +101,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
         cost: initial?.cost?.toString() || '',
         currency: initial?.currency || '',
         isManual: initial?.isManual || false,
+        notes: initial?.notes || '',
     });
     
     const isValid = form.name && form.cost && form.currency;
@@ -108,7 +109,8 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
         form.name !== (initial?.name || '') ||
         form.cost !== (initial?.cost?.toString() || '') ||
         form.currency !== (initial?.currency || '') ||
-        form.isManual !== (initial?.isManual || false);
+        form.isManual !== (initial?.isManual || false) ||
+        form.notes !== (initial?.notes || '');
     useEffect(() => {
         if (initial) {
             setForm({
@@ -116,6 +118,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
                 cost: initial.cost?.toString() || '',
                 currency: initial.currency || '',
                 isManual: initial.isManual || false,
+                notes: initial.notes || '',
             });
         }
     }, [initial]);
@@ -126,6 +129,7 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
             cost: Number(form.cost),
             currency: form.currency,
             isManual: form.isManual,
+            notes: form.notes,
         });
     }
     return (
@@ -152,6 +156,17 @@ export function ServiceForm({ initial, loading, deleting, onSubmit, onCancel, su
             <div className="flex items-center gap-2">
                 <input type="checkbox" id="service-isManual" name="isManual" checked={form.isManual} onChange={e => setForm(f => ({ ...f, isManual: e.target.checked }))} />
                 <Label htmlFor="service-isManual" className="mb-0">Manual payment</Label>
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="service-notes">Notes</Label>
+                <Textarea 
+                    id="service-notes" 
+                    name="notes" 
+                    placeholder="Additional notes about this service..." 
+                    value={form.notes} 
+                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                    rows={3}
+                />
             </div>
             <div className="flex gap-2 mt-2">
                 {(isChanged || !initial) && (

@@ -34,6 +34,7 @@ interface ServiceItem {
     cost: number;
     currency: string;
     isManual: boolean;
+    notes?: string;
 }
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
 
@@ -132,7 +133,7 @@ function CreateServiceForm({ onClose, onItemCreated, availableCurrencies = [] }:
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'service', ...data };
+            const item = { type: 'service' as const, ...data };
             const created = await addItemToDb(item);
             onItemCreated(created);
             showToast.update(toastId, toastMessages.created, 'success');
@@ -154,7 +155,7 @@ function CreateAccountForm({ onClose, onItemCreated, availableCurrencies = [] }:
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'account', ...data };
+            const item = { type: 'account' as const, ...data };
             const created = await addItemToDb(item);
             onItemCreated(created);
             showToast.update(toastId, toastMessages.created, 'success');
@@ -176,7 +177,7 @@ function CreateDebtForm({ onClose, onItemCreated, availableCurrencies = [], avai
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'debt', ...data };
+            const item = { type: 'debt' as const, ...data };
             const created = await addItemToDb(item);
             onItemCreated(created);
             showToast.update(toastId, toastMessages.created, 'success');
@@ -198,7 +199,7 @@ function CreateCurrencyForm({ onClose, onItemCreated, availableCurrencies = [] }
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'currency', ...data };
+            const item = { type: 'currency' as const, ...data };
             const created = await addItemToDb(item);
             onItemCreated(created);
             showToast.update(toastId, toastMessages.created, 'success');

@@ -27,6 +27,7 @@ export type Service = {
     currency: string;
     currencyId?: string;
     isManual: boolean;
+    notes?: string;
     type: 'service';
     createDate: string;
     editDate: string;
@@ -98,6 +99,7 @@ export type DbItem = {
     currency?: string;
     currencyId?: string;
     isManual?: boolean;
+    notes?: string;
     description?: string;
     withWho?: string;
     personId?: string;
@@ -124,6 +126,7 @@ export type ServiceFormData = {
     cost: number;
     currency: string;
     isManual: boolean;
+    notes?: string;
 };
 
 export type DebtFormData = {

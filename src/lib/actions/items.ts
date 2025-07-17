@@ -4,7 +4,9 @@ import { ObjectId, MongoClient, Db, ClientSession } from "mongodb";
 import { requireAuth } from "./auth";
 import { CurrencyEntity, PersonEntity, DbItem, Item } from "@/lib/types";
 
-export async function addItemToDb(item: DbItem): Promise<Item | null> {
+type NewItemData = Omit<DbItem, '_id' | 'userId' | 'createDate' | 'editDate'>;
+
+export async function addItemToDb(item: NewItemData): Promise<Item | null> {
     const user = await requireAuth();
     const now = new Date().toISOString();
     
@@ -36,8 +38,8 @@ export async function addItemToDb(item: DbItem): Promise<Item | null> {
                 }
             }
             
-            // Create item data without _id for insertion
-            const { _id: itemId, ...itemData } = item;
+            // Create item data for insertion
+            const itemData = item;
             
             // Insert the item
             const insertResult = await transactionDb.collection("items").insertOne({
