@@ -100,8 +100,8 @@ Resources:
       Runtime: nodejs18.x
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
-      Timeout: 30
-      MemorySize: 1024
+      Timeout: 15
+      MemorySize: 512
       Environment:
         Variables:
           NODE_ENV: !Ref Environment

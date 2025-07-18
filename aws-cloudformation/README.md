@@ -17,37 +17,26 @@ This directory contains an optimized CloudFormation template for deploying your 
 - **Memory limits**: 10GB maximum
 - **Best for**: APIs, SSR pages, moderate traffic apps
 
-## Architecture Options: Single vs Multi-Lambda
+## Single Lambda Architecture
 
-### Option 1: Single Lambda (Current Implementation)
+Your Next.js application runs in a single Lambda function that handles:
 ```
 CloudFront → API Gateway → Single Lambda (Entire Next.js App)
           ↘ S3 (Static Assets)
 ```
 
-**Pros:**
-- Simpler deployment and management
-- Shared connection pools and state
-- Lower latency between components
-- Easier debugging and monitoring
-
-**Cons:**
-- Larger bundle size = slower cold starts
-- All routes share the same timeout/memory limits
-- Less granular scaling
-
-### Option 2: Multi-Lambda Architecture (Advanced)
-```
-CloudFront → API Gateway → Lambda 1 (Pages/SSR)
-                       → Lambda 2 (API Routes)
-                       → Lambda 3 (Auth/Heavy Operations)
-          ↘ S3 (Static Assets)
-```
-
 **Benefits:**
-- **Smaller bundles** = faster cold starts per function
-- **Independent scaling** based on usage patterns
-- **Specialized configurations** (memory, timeout) per function
+- ✅ **Simple deployment** - One function to manage
+- ✅ **Shared resources** - Database connections, cache reused
+- ✅ **Lower complexity** - Easier debugging and monitoring
+- ✅ **Cost effective** - Perfect for solo development
+- ✅ **Fast development** - No function coordination needed
+
+**How it works:**
+- **Pages** (`/dashboard`, `/login`) - Server-side rendered
+- **API Routes** (`/api/transactions`) - Direct API responses  
+- **Static Assets** - Served from S3 + CloudFront
+- **Authentication** - Handled within the same function
 - **Better fault isolation**
 
 **Trade-offs:**
@@ -81,35 +70,12 @@ CloudFront → API Gateway → Lambda 1 (Pages/SSR)
 
 ## Quick Deployment
 
-## Quick Deployment
-
-### Option 1: Single Lambda (Recommended for most cases)
+### Deploy with Single Lambda
 ```bash
 ./deploy.sh
 ```
 
-### Option 2: Multi-Lambda Architecture
-```bash
-# Deploy multi-lambda architecture
-aws cloudformation create-stack \
-  --stack-name finances-multi-lambda \
-  --template-body file://aws-cloudformation/multi-lambda-deployment.yaml \
-  --parameters \
-    ParameterKey=MongoDBConnectionString,ParameterValue="your-connection-string" \
-    ParameterKey=Environment,ParameterValue=prod \
-  --capabilities CAPABILITY_IAM
-
-# Add warming for production
-aws cloudformation create-stack \
-  --stack-name lambda-warming \
-  --template-body file://aws-cloudformation/lambda-warming.yaml \
-  --parameters \
-    ParameterKey=LambdaFunctionName,ParameterValue=finances-multi-lambda-pages-function \
-    ParameterKey=ProvisionedConcurrency,ParameterValue=1 \
-  --capabilities CAPABILITY_IAM
-```
-
-### Option 3: Single Lambda with Warming (Production)
+### With Lambda Warming (For Production)
 ```bash
 # Deploy single lambda
 ./deploy.sh
@@ -282,38 +248,29 @@ aws logs filter-log-events \
 
 ### For Your Finance Dashboard:
 
-**Single Lambda (Recommended):**
-- Simple personal/small business dashboard
-- Moderate traffic (< 1000 requests/hour)
-- Easier debugging and deployment
-- Lower infrastructure complexity
+**Single Lambda Benefits:**
+- ✅ Simple personal/small business dashboard
+- ✅ Perfect for solo development
+- ✅ Easier debugging and deployment  
+- ✅ Lower infrastructure complexity
+- ✅ Cost effective for moderate traffic
+- ✅ All components work together seamlessly
 
-**Multi-Lambda (Consider if):**
-- You need different timeout/memory for different operations
-- API routes are significantly different from pages
-- You want independent scaling
-- You're building a larger application
+### Why Single Lambda Works Great:
 
-### Implementation Decision Matrix
+**Performance:** Your finance app will have excellent performance with a single Lambda:
+- **First visit:** ~1-3 seconds (includes cold start + page render)
+- **API calls:** ~50-200ms (warm Lambda, direct database access)
+- **Navigation:** ~200-500ms (server-side rendering)
 
-| Factor | Single Lambda | Multi-Lambda |
-|--------|---------------|--------------|
-| **Bundle Size** | Larger (~15-30MB) | Smaller per function (~5-15MB) |
-| **Cold Start** | 1-3 seconds | 0.5-1.5 seconds per function |
-| **Complexity** | Low | Medium |
-| **Cost** | Lower | Slightly higher |
-| **Debugging** | Easier | More complex |
-| **Scaling** | Uniform | Independent |
-
-### When to Choose Multi-Lambda:
-1. **Heavy API operations** that need longer timeouts
-2. **Authentication flows** requiring higher memory
-3. **Different traffic patterns** for pages vs APIs
-4. **Microservices approach** with team specialization
+**Scaling:** Perfect for personal finance management:
+- Handles hundreds of concurrent users
+- Automatic scaling based on traffic
+- No coordination between multiple functions needed
 
 ### Memory and Timeout
-- Default: 1024MB memory, 30-second timeout
-- Adjust based on your app's needs
+- Default: 512MB memory, 15-second timeout (optimized for cost)
+- Scale up using Environment Management workflow when needed
 - Monitor CloudWatch metrics for optimization
 
 ### Static Assets
