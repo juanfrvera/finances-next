@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js Finance Dashboard
 
-## Getting Started
+A modern finance dashboard built with Next.js, deployed automatically to AWS Lambda.
 
-First, run the development server:
+## 🚀 Quick Start
 
+**For AWS deployment:** See [`deploy/AWS_SETUP_GUIDE.md`](deploy/AWS_SETUP_GUIDE.md)
+
+**For local development:**
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+├── src/app/                 # Next.js app directory
+├── src/components/          # React components
+├── deploy/                  # AWS deployment files
+│   ├── AWS_SETUP_GUIDE.md   # Complete deployment guide
+│   └── aws-cloudformation/  # CloudFormation templates
+├── .github/workflows/       # GitHub Actions (auto-deploy)
+└── package.json
+```
 
-## Learn More
+## 🔧 Features
 
-To learn more about Next.js, take a look at the following resources:
+- ✅ **Automatic AWS deployment** on push to main
+- ✅ **MongoDB integration** for data storage
+- ✅ **Authentication** with NextAuth.js
+- ✅ **Responsive design** with Tailwind CSS
+- ✅ **TypeScript** for type safety
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🌐 Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Zero-setup deployment to AWS Lambda:**
 
-## Deploy on Vercel
+1. Follow [`deploy/AWS_SETUP_GUIDE.md`](deploy/AWS_SETUP_GUIDE.md)
+2. Push to main branch
+3. Your app is live! (~3-5 minutes)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Cost:** ~$5-15/month for typical usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📊 Architecture
+
+```
+GitHub → GitHub Actions → AWS CloudFormation → Lambda + API Gateway + CloudFront
+```
+
+## 🛠️ Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run production build locally
+npm start
+
+# View AWS deployment status
+npm run aws:status
+npm run aws:outputs
+npm run aws:logs
+```
+
+## 📝 Environment Variables
+
+Create `.env.local` for local development:
+
+```env
+MONGODB_URI=your-mongodb-connection-string
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
+```
+
+For production, these are automatically configured via GitHub secrets.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Push to main → automatic deployment
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.

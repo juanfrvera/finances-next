@@ -1,11 +1,10 @@
 /**
  * Optimized AWS Lambda handler for Next.js with cold start mitigation
- * 
- * Install dependencies:
- * npm install @vendia/serverless-express
+ * No external dependencies required - uses only Node.js built-ins and Next.js
  */
 
-const { createServer, proxy } = require('@vendia/serverless-express');
+const { createServer } = require('http');
+const { parse } = require('url');
 const next = require('next');
 
 // Global variables for reuse across Lambda invocations
@@ -90,7 +89,8 @@ const createOptimizedServer = async () => {
   if (!server) {
     const nextHandler = app.getRequestHandler();
     
-    server = createServer(async (req, res) => {
+    // Create HTTP server that Next.js can handle
+    server = createServer((req, res) => {
       const startTime = Date.now();
       
       // Handle static assets redirect (no processing needed)
@@ -124,6 +124,73 @@ const createOptimizedServer = async () => {
   return server;
 };
 
+// Convert Lambda event to Node.js HTTP request format
+const createHttpRequest = (event) => {
+  const { path, httpMethod, headers, queryStringParameters, body } = event;
+  
+  // Build URL with query parameters
+  const url = path + (queryStringParameters ? 
+    '?' + new URLSearchParams(queryStringParameters).toString() : '');
+  
+  // Create mock request object
+  const req = {
+    url,
+    method: httpMethod,
+    headers: headers || {},
+    body: body || '',
+    // Add other properties that Next.js might need
+    connection: { encrypted: true }, // Assume HTTPS
+    socket: { encrypted: true },
+  };
+  
+  return req;
+};
+
+// Convert Node.js HTTP response to Lambda response format
+const createHttpResponse = () => {
+  const chunks = [];
+  let statusCode = 200;
+  let responseHeaders = {};
+  
+  const res = {
+    statusCode: 200,
+    headers: {},
+    write: function(chunk) {
+      chunks.push(chunk);
+    },
+    end: function(chunk) {
+      if (chunk) chunks.push(chunk);
+      this.finished = true;
+    },
+    writeHead: function(code, headers) {
+      statusCode = code;
+      if (headers) responseHeaders = { ...responseHeaders, ...headers };
+    },
+    setHeader: function(name, value) {
+      responseHeaders[name] = value;
+    },
+    getHeader: function(name) {
+      return responseHeaders[name];
+    },
+    removeHeader: function(name) {
+      delete responseHeaders[name];
+    },
+    // Add other response methods Next.js might need
+    finished: false,
+    headersSent: false,
+  };
+  
+  // Return both the response object and a function to get the final result
+  return {
+    res,
+    getResult: () => ({
+      statusCode,
+      headers: responseHeaders,
+      body: Buffer.concat(chunks).toString(),
+    })
+  };
+};
+
 // Main Lambda handler with cold start optimization
 exports.handler = async (event, context) => {
   // Optimize Lambda context
@@ -140,23 +207,15 @@ exports.handler = async (event, context) => {
       await initializeApp();
     }
     
-    // Create server if not already done
-    if (!server) {
-      await createOptimizedServer();
-    }
-    
-    // Add cold start metrics to response
-    const headers = {
-      'X-Cold-Start': isColdStart.toString(),
-      'X-Init-Time': `${Date.now() - startTime}ms`,
-    };
-    
     // Handle warm-up requests (from CloudWatch Events)
     if (event.source === 'aws.events' && event['detail-type'] === 'Lambda Warmer') {
       console.log('Warm-up request received');
       return {
         statusCode: 200,
-        headers,
+        headers: {
+          'X-Cold-Start': isColdStart.toString(),
+          'X-Init-Time': `${Date.now() - startTime}ms`,
+        },
         body: JSON.stringify({ 
           message: 'Lambda warmed up successfully',
           coldStart: isColdStart,
@@ -165,15 +224,32 @@ exports.handler = async (event, context) => {
       };
     }
     
-    // Proxy the request
-    const result = await proxy(server, event, context, 'PROMISE').promise;
+    // Convert Lambda event to HTTP request/response
+    const req = createHttpRequest(event);
+    const { res, getResult } = createHttpResponse();
     
-    // Add performance headers to result
-    if (result.headers) {
-      Object.assign(result.headers, headers);
-    } else {
-      result.headers = headers;
-    }
+    // Add cold start metrics to response headers
+    res.setHeader('X-Cold-Start', isColdStart.toString());
+    res.setHeader('X-Init-Time', `${Date.now() - startTime}ms`);
+    
+    // Get Next.js handler and process the request
+    const nextHandler = app.getRequestHandler();
+    
+    // Process the request through Next.js
+    await new Promise((resolve, reject) => {
+      // Handle the request
+      nextHandler(req, res).then(resolve).catch(reject);
+      
+      // Also resolve when response is finished
+      const originalEnd = res.end;
+      res.end = function(...args) {
+        originalEnd.apply(this, args);
+        resolve();
+      };
+    });
+    
+    // Get the final Lambda response
+    const result = getResult();
     
     return result;
     

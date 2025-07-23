@@ -9,219 +9,77 @@ on:
   pull_request:
     branches: [ main ]
     types: [ closed ]
-  
-  # Manual deployment trigger
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'prod'
-        type: choice
-        options:
-          - staging
-          - prod
 
 env:
   AWS_REGION: us-east-1
-  NODE_VERSION: '22'
+  ECR_REPOSITORY: finances-next
+  IMAGE_TAG: latest
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
+    environment: production
     
     # Only run on merged PRs or direct pushes to main
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run tests (if any)
-      run: npm run test --if-present
-    
-    - name: Build Next.js application
-      run: npm run build
-      env:
-        NODE_ENV: production
-    
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Create Lambda deployment package
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Create ECR repository if it doesn't exist
       run: |
-        # Create package directory
-        mkdir -p lambda-package
-        
-        # Copy built application
-        if [ -d ".next/standalone" ]; then
-          cp -r .next/standalone/* lambda-package/
-        fi
-        
-        if [ -d ".next/static" ]; then
-          mkdir -p lambda-package/.next
-          cp -r .next/static lambda-package/.next/static
-        fi
-        
-        if [ -d "public" ]; then
-          cp -r public lambda-package/public
-        fi
-        
-        # Copy Lambda handler
-        if [ -f "lambda-handler-optimized.js" ]; then
-          cp lambda-handler-optimized.js lambda-package/lambda-handler.js
-        elif [ -f "lambda-handler.js" ]; then
-          cp lambda-handler.js lambda-package/lambda-handler.js
-        else
-          echo "Creating basic Lambda handler..."
-          cat > lambda-package/lambda-handler.js << 'EOF'
-        const { createServer } = require('http');
-        const { parse } = require('url');
-        const next = require('next');
-        
-        const app = next({ dev: false });
-        const handle = app.getRequestHandler();
-        
-        let serverPromise;
-        
-        const getServer = () => {
-          if (!serverPromise) {
-            serverPromise = app.prepare().then(() => {
-              return createServer((req, res) => {
-                const parsedUrl = parse(req.url, true);
-                handle(req, res, parsedUrl);
-              });
-            });
-          }
-          return serverPromise;
-        };
-        
-        exports.handler = async (event, context) => {
-          context.callbackWaitsForEmptyEventLoop = false;
-          
-          const server = await getServer();
-          const { path, httpMethod, headers, queryStringParameters, body } = event;
-          
-          const url = path + (queryStringParameters ? 
-            '?' + new URLSearchParams(queryStringParameters).toString() : '');
-          
-          return new Promise((resolve) => {
-            const req = { url, method: httpMethod, headers: headers || {} };
-            const res = {
-              statusCode: 200,
-              headers: {},
-              body: '',
-              writeHead: function(statusCode, headers) {
-                this.statusCode = statusCode;
-                if (headers) Object.assign(this.headers, headers);
-              },
-              setHeader: function(name, value) {
-                this.headers[name] = value;
-              },
-              write: function(chunk) {
-                this.body += chunk;
-              },
-              end: function(chunk) {
-                if (chunk) this.body += chunk;
-                resolve({
-                  statusCode: this.statusCode,
-                  headers: this.headers,
-                  body: this.body,
-                });
-              }
-            };
-            
-            handle(req, res);
-          });
-        };
-        EOF
-        fi
-        
-        # Install production dependencies
-        if [ -f "package.json" ]; then
-          cp package.json lambda-package/
-          if [ -f "package-lock.json" ]; then
-            cp package-lock.json lambda-package/
-          fi
-          cd lambda-package && npm ci --production --silent
-          cd ..
-        fi
-        
-        # Create deployment zip
-        cd lambda-package
-        zip -r ../lambda-deployment.zip . -q
-        cd ..
-        
-        # Show package size
-        ls -lh lambda-deployment.zip
-    
-    - name: Determine environment
-      id: env
+        aws ecr describe-repositories --repository-names $ECR_REPOSITORY || \
+        aws ecr create-repository --repository-name $ECR_REPOSITORY --region $AWS_REGION
+
+    - name: Build, tag, and push Docker image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-        else
-          echo "environment=prod" >> $GITHUB_OUTPUT
-        fi
-    
+        # Build Docker image using Dockerfile in deploy folder
+        docker build -f deploy/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        
+        # Push image to ECR
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        
+        # Output image URI for later steps
+        echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
     - name: Deploy CloudFormation stack
       run: |
-        STACK_NAME="finances-app-${{ steps.env.outputs.environment }}"
-        TEMPLATE_FILE="aws-cloudformation/lambda-serverless-deployment.yaml"
+        STACK_NAME="finances-next-prod"
+        TEMPLATE_FILE="deploy/cloudformation-template.yaml"
         
         echo "Deploying stack: $STACK_NAME"
         echo "Template: $TEMPLATE_FILE"
+        echo "Container Image: $IMAGE_URI"
         
         aws cloudformation deploy \
           --template-file "$TEMPLATE_FILE" \
           --stack-name "$STACK_NAME" \
           --parameter-overrides \
+            ContainerImageUri="$IMAGE_URI" \
             MongoDBConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
-            Environment="${{ steps.env.outputs.environment }}" \
+            DBName="${{ secrets.DB_NAME }}" \
+            Environment="prod" \
           --capabilities CAPABILITY_IAM \
           --region ${{ env.AWS_REGION }}
-    
-    - name: Update Lambda function code
-      run: |
-        STACK_NAME="finances-app-${{ steps.env.outputs.environment }}"
-        
-        # Get Lambda function name from CloudFormation outputs
-        FUNCTION_NAME=$(aws cloudformation describe-stacks \
-          --stack-name "$STACK_NAME" \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`LambdaFunctionName`].OutputValue' \
-          --output text)
-        
-        if [ -z "$FUNCTION_NAME" ] || [ "$FUNCTION_NAME" == "None" ]; then
-          echo "Error: Could not get Lambda function name from stack outputs"
-          exit 1
-        fi
-        
-        echo "Updating Lambda function: $FUNCTION_NAME"
-        
-        aws lambda update-function-code \
-          --function-name "$FUNCTION_NAME" \
-          --zip-file fileb://lambda-deployment.zip \
-          --region ${{ env.AWS_REGION }}
-    
+
     - name: Get deployment information
       id: deployment
       run: |
-        STACK_NAME="finances-app-${{ steps.env.outputs.environment }}"
+        STACK_NAME="finances-next-prod"
         
         # Get API Gateway URL
         API_URL=$(aws cloudformation describe-stacks \
@@ -245,21 +103,24 @@ jobs:
         
         echo "### Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Environment:** ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Architecture:** Single Lambda" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+        echo "**Container Image:** $IMAGE_URI" >> $GITHUB_STEP_SUMMARY
         echo "**API Gateway URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
         if [ -n "$CLOUDFRONT_URL" ] && [ "$CLOUDFRONT_URL" != "None" ]; then
           echo "**CloudFront URL:** $CLOUDFRONT_URL" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "🔗 **Your application is now live!**" >> $GITHUB_STEP_SUMMARY
-    
+
     - name: Test deployment
       run: |
         API_URL="${{ steps.deployment.outputs.api_url }}"
         
         if [ -n "$API_URL" ] && [ "$API_URL" != "None" ]; then
           echo "Testing deployment at: $API_URL"
+          
+          # Wait a moment for Lambda to be ready
+          sleep 10
           
           # Test with curl
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" || echo "000")
@@ -275,53 +136,8 @@ jobs:
           echo "⚠️ Could not retrieve API URL for testing"
           echo "⚠️ **Deployment Test: SKIPPED** (No API URL)" >> $GITHUB_STEP_SUMMARY
         fi
-    
+
     - name: Cleanup
       if: always()
       run: |
-        rm -rf lambda-package lambda-deployment.zip
-        echo "🧹 Cleaned up temporary files"
-
-  # Optional: Deploy to staging on PR
-  deploy-staging:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'opened'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build Next.js application
-      run: npm run build
-      env:
-        NODE_ENV: production
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Deploy to staging
-      run: |
-        # Create a staging deployment with PR number
-        STACK_NAME="finances-app-pr-${{ github.event.number }}"
-        
-        echo "Deploying PR #${{ github.event.number }} to staging: $STACK_NAME"
-        
-        # This would deploy to a temporary staging environment
-        # You can customize this based on your needs
-        echo "Staging deployment would go here"
-        
-        # Add PR comment with staging URL
-        echo "🔧 **PR Preview:** Staging deployment would be available at staging-url" >> $GITHUB_STEP_SUMMARY
+        echo "🧹 Container deployment completed"

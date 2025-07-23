@@ -7,10 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:lambda": "npm run build && node scripts/build-lambda.js",
-    "deploy:dev": "npm run build:lambda && ./deploy.sh finances-app dev single",
-    "deploy:prod": "npm run build:lambda && ./deploy.sh finances-app prod single",
-    "deploy:multi": "npm run build:lambda && ./deploy.sh finances-app prod multi",
     "aws:logs": "aws logs tail /aws/lambda/finances-app-prod-nextjs-function --follow",
     "aws:status": "aws cloudformation describe-stacks --stack-name finances-app-prod --query 'Stacks[0].StackStatus'",
     "aws:outputs": "aws cloudformation describe-stacks --stack-name finances-app-prod --query 'Stacks[0].Outputs' --output table"

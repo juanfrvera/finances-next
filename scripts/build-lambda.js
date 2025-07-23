@@ -37,9 +37,9 @@ if (fs.existsSync('public')) {
 }
 
 // Copy Lambda handler
-const handlerFile = fs.existsSync('lambda-handler-optimized.js') 
-  ? 'lambda-handler-optimized.js' 
-  : 'lambda-handler.js';
+const handlerFile = fs.existsSync('deploy/lambda-handler-optimized.js') 
+  ? 'deploy/lambda-handler-optimized.js' 
+  : 'deploy/lambda-handler.js';
 
 if (fs.existsSync(handlerFile)) {
   console.log(`📦 Copying ${handlerFile}...`);
