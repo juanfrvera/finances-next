@@ -7,15 +7,31 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Install ALL dependencies (production + dev) for building
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Copy node_modules from deps stage (includes both prod and dev deps)
 COPY --from=deps /app/node_modules ./node_modules
+
+# copies all your source code from your local project directory into the container
+# respects .dockerignore (excludes node_modules, .git, etc.)
 COPY . .
+
+# Build the app - environment variables needed for build
+# ARG allows you to pass build-time variables (in command line). It receives the values from --build-arg
+# When container runs, the ARG variables are gone
+ARG DB_URL
+ARG DB_NAME
+
+# ENV sets environment variables for the build process
+# these variables will be available during the build process
+ENV DB_URL=$DB_URL
+ENV DB_NAME=$DB_NAME
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
@@ -23,6 +39,18 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
+
+# Stage 3: production-deps - Remove dev dependencies from existing node_modules
+FROM base AS production-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy package.json and the complete node_modules from deps stage
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/node_modules ./node_modules
+
+# Remove dev dependencies while keeping production ones
+RUN npm prune --production
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -36,9 +64,8 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Copy production dependencies from production-deps stage
+COPY --from=production-deps /app/node_modules ./node_modules
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
