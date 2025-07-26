@@ -70,7 +70,7 @@ jobs:
           --stack-name "$STACK_NAME" \
           --parameter-overrides \
             ContainerImageUri="$IMAGE_URI" \
-            MongoDBConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
+            DBUrl="${{ secrets.DB_URL }}" \
             DBName="${{ secrets.DB_NAME }}" \
             Environment="prod" \
           --capabilities CAPABILITY_IAM \

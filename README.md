@@ -76,7 +76,8 @@ npm run aws:logs
 Create `.env.local` for local development:
 
 ```env
-MONGODB_URI=your-mongodb-connection-string
+DB_URL=mongodb://localhost:27017
+DB_NAME=your-database-name
 NEXTAUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
 ```

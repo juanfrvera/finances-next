@@ -49,7 +49,7 @@ const connectToDatabase = async () => {
   }
   
   const { MongoClient } = require('mongodb');
-  mongoClient = new MongoClient(process.env.MONGODB_URI, {
+  mongoClient = new MongoClient(process.env.DB_URL, {
     maxPoolSize: 10, // Maintain up to 10 socket connections
     serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
     socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
@@ -69,7 +69,7 @@ const initializeApp = async () => {
     await app.prepare();
     
     // Pre-connect to database during cold start
-    if (process.env.MONGODB_URI) {
+    if (process.env.DB_URL) {
       try {
         await connectToDatabase();
         console.log('Database connection established during cold start');
@@ -301,10 +301,10 @@ exports.health = async (event, context) => {
   };
   
   // Test database connection
-  if (process.env.MONGODB_URI) {
+  if (process.env.DB_URL) {
     try {
       const client = await connectToDatabase();
-      await client.db().admin().ping();
+      await client.db('admin').command({ ping: 1 });
       healthData.database = 'connected';
     } catch (error) {
       healthData.database = 'disconnected';

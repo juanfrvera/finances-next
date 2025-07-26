@@ -7,14 +7,14 @@ Parameters:
     Description: Container image URI from ECR
     Default: ''
   
-  MongoDBConnectionString:
+  DBUrl:
     Type: String
-    Description: MongoDB connection string
+    Description: Database connection URL
     NoEcho: true
   
   DBName:
     Type: String
-    Description: MongoDB database name
+    Description: Database name
     NoEcho: true
   
   DomainName:
@@ -115,7 +115,7 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: !Ref Environment
-          MONGODB_URI: !Ref MongoDBConnectionString
+          DB_URL: !Ref DBUrl
           DB_NAME: !Ref DBName
           STATIC_BUCKET: !Ref StaticAssetsBucket
           NEXT_TELEMETRY_DISABLED: '1'

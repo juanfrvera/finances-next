@@ -212,10 +212,10 @@ Add these **4 required secrets:**
 
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | Your AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY` | Your AWS Secret Access Key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `MONGODB_CONNECTION_STRING` | Your MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/` |
-| `DB_NAME` | Your MongoDB database name | `finances` |
+| `AWS_ACCESS_KEY_ID` | Your AWS Access Key ID | `AKIA1234567890EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS Secret Access Key | `abcd1234/ExampleSecretKey/NotReal+Example` |
+| `DB_URL` | Your database connection URL | `mongodb+srv://username:password@your-cluster.mongodb.net/?retryWrites=true&w=majority` |
+| `DB_NAME` | Your database name | `your-database-name` |
 
 ### 2.2 Verify GitHub Actions Workflow
 
