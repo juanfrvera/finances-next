@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { showToast } from "@/lib/toast";
 import { getTransactions, deleteTransaction } from "@/app/actions";
 import type { Transaction } from "@/lib/types";
@@ -36,7 +36,7 @@ function formatCurrency(amount: number, currency: string = '') {
 export default function TransactionsList({ 
     itemId, 
     currency, 
-    onAddTransaction,
+    onAddTransaction: _onAddTransaction,
     onRefresh
 }: { 
     itemId: string; 
@@ -48,21 +48,24 @@ export default function TransactionsList({
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadTransactions();
-    }, [itemId]);
-
-    async function loadTransactions() {
+    // Reusable function for loading transactions
+    const loadTransactions = useCallback(async () => {
         try {
             setLoading(true);
             const data = await getTransactions(itemId);
             setTransactions(data as Transaction[]);
         } catch (error) {
+            console.error('Failed to load transactions:', error);
             showToast.error("Failed to load transactions");
         } finally {
             setLoading(false);
         }
-    }
+    }, [itemId]);
+
+    // Load transactions when component mounts or itemId changes
+    useEffect(() => {
+        loadTransactions();
+    }, [loadTransactions]);
 
     async function handleDelete(transactionId: string) {
         setDeletingId(transactionId);
@@ -73,6 +76,7 @@ export default function TransactionsList({
             showToast.update(toastId, "Transaction deleted successfully!", "success");
             if (onRefresh) onRefresh();
         } catch (error) {
+            console.error('Failed to delete transaction:', error);
             showToast.update(toastId, "Failed to delete transaction", "error");
         } finally {
             setDeletingId(null);
@@ -80,9 +84,9 @@ export default function TransactionsList({
     }
 
     // Function to refresh transactions after adding a new one
-    const refreshTransactions = () => {
+    const refreshTransactions = useCallback(() => {
         loadTransactions();
-    };
+    }, [loadTransactions]);
 
     // Expose refresh function to parent
     useEffect(() => {
@@ -90,7 +94,7 @@ export default function TransactionsList({
         return () => {
             delete (window as any).__refreshTransactions;
         };
-    }, []);
+    }, [refreshTransactions]);
 
     if (loading) {
         return (
@@ -105,7 +109,7 @@ export default function TransactionsList({
             {transactions.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                     <p>No transactions yet.</p>
-                    <p className="text-sm mt-1">Click "Add Transaction" to record your first transaction.</p>
+                    <p className="text-sm mt-1">Click &ldquo;Add Transaction&rdquo; to record your first transaction.</p>
                 </div>
             ) : (
                 <div className="space-y-2">

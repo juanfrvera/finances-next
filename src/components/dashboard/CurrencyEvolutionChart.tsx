@@ -6,8 +6,18 @@ interface CurrencyEvolutionChartProps {
     currency: string;
 }
 
+// Tooltip props type for Recharts
+interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+        payload: CurrencyEvolutionDataPoint;
+        value: number;
+    }>;
+    label?: string;
+}
+
 // Custom tooltip component
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload }: TooltipProps) {
     if (active && payload && payload.length) {
         const data = payload[0].payload as CurrencyEvolutionDataPoint;
         const formattedValue = new Intl.NumberFormat('en-US', {

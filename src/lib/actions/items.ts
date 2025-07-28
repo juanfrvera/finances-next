@@ -191,7 +191,7 @@ export async function updateItemToDb(item: DbItem): Promise<Item | null> {
             }
             
             // Exclude _id from the update payload to avoid attempting to overwrite it
-            const { _id: itemId, ...updateFields } = item;
+            const { _id: _itemId, ...updateFields } = item;
             await transactionDb.collection("items").updateOne(
                 { _id, userId: user.id },
                 { $set: { ...updateFields, editDate } },

@@ -85,6 +85,13 @@ export type PersonEntity = {
 
 export type Item = Account | Service | Debt | Currency;
 
+// Component-level types that include database fields like 'archived'
+export type AccountItem = Account & { archived?: boolean };
+export type ServiceItem = Service & { archived?: boolean };
+export type DebtItem = Debt & { archived?: boolean };
+export type CurrencyItem = Currency & { archived?: boolean };
+export type ComponentItem = AccountItem | ServiceItem | DebtItem | CurrencyItem;
+
 // Database item types (before processing)
 export type DbItem = {
     _id: string;

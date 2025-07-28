@@ -16,6 +16,7 @@ import { CustomOrderStorage } from "@/lib/custom-order-storage";
 import { SortModeStorage, type SortMode } from "@/lib/sort-mode-storage";
 import { archiveItem, unarchiveItem } from "@/app/actions";
 import { showToast } from "@/lib/toast";
+import type { DebtItem, ComponentItem } from "@/lib/types";
 
 // Dynamically import PieChartDisplay with SSR disabled to prevent hydration mismatch
 const PieChartDisplay = dynamic(() => import("./PieChartDisplay"), {
@@ -298,6 +299,132 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
         }
     }, [customOrder, isCustomOrderHydrated]); // Save whenever custom order changes
 
+    // Helper function to create a grouping key for debts
+    const getDebtGroupKey = useCallback((debt: DebtItem) => {
+        return `${debt.withWho}:${debt.theyPayMe}`;
+    }, []);
+
+    // Helper function to check if debts can be grouped
+    const canGroupDebts = useCallback((debts: ComponentItem[]) => {
+        const debtGroups = new Map<string, DebtItem[]>();
+
+        debts.filter(item => item.type === 'debt').forEach(debt => {
+            const groupKey = getDebtGroupKey(debt as DebtItem);
+            if (!debtGroups.has(groupKey)) {
+                debtGroups.set(groupKey, []);
+            }
+            debtGroups.get(groupKey)!.push(debt as DebtItem);
+        });
+
+        return debtGroups;
+    }, [getDebtGroupKey]);
+
+    // Helper function to create grouped debt item
+    const createGroupedDebt = useCallback((debts: DebtItem[], groupKey: string) => {
+        const [withWho, theyPayMe] = groupKey.split(':');
+
+        // Group debts by currency
+        const currencyTotals = new Map<string, {
+            amount: number;
+            totalPaid: number;
+            remainingAmount: number;
+            transactionCount: number;
+        }>();
+
+        debts.forEach(debt => {
+            const currency = debt.currency || 'USD';
+            const current = currencyTotals.get(currency) || {
+                amount: 0,
+                totalPaid: 0,
+                remainingAmount: 0,
+                transactionCount: 0
+            };
+
+            current.amount += debt.amount || 0;
+            current.totalPaid += debt.totalPaid || 0;
+            current.transactionCount += debt.transactionCount || 0;
+            current.remainingAmount = current.amount - current.totalPaid;
+
+            currencyTotals.set(currency, current);
+        });
+
+        // Convert to array for easier handling
+        const currencyBreakdown = Array.from(currencyTotals.entries()).map(([currency, totals]) => ({
+            currency,
+            ...totals,
+            paymentStatus: totals.remainingAmount <= 0 ? 'paid' :
+                totals.totalPaid > 0 ? 'partially_paid' : 'unpaid'
+        }));
+
+        // Calculate overall totals (for legacy compatibility, use first currency)
+        const totalAmount = debts.reduce((sum, debt) => sum + (debt.amount || 0), 0);
+        const totalPaid = debts.reduce((sum, debt) => sum + (debt.totalPaid || 0), 0);
+        const remainingAmount = totalAmount - totalPaid;
+        const currency = debts[0]?.currency || 'USD';
+        const transactionCount = debts.reduce((sum, debt) => sum + (debt.transactionCount || 0), 0);
+
+        // Determine overall payment status
+        let paymentStatus = 'unpaid';
+        if (remainingAmount <= 0) {
+            paymentStatus = 'paid';
+        } else if (totalPaid > 0) {
+            paymentStatus = 'partially_paid';
+        }
+
+        return {
+            _id: `grouped-${groupKey}`,
+            type: 'debt' as const,
+            withWho,
+            theyPayMe: theyPayMe === 'true',
+            amount: totalAmount,
+            totalPaid,
+            remainingAmount,
+            currency,
+            paymentStatus: paymentStatus as 'paid' | 'partially_paid' | 'unpaid',
+            transactionCount,
+            currencyBreakdown, // New field with per-currency breakdown
+            description: `${debts.length} debts grouped`,
+            name: `Grouped: ${withWho}`,
+            isGrouped: true,
+            groupedItems: debts,
+            editDate: new Date(Math.max(...debts.map(d => new Date(d.editDate || 0).getTime()))).toISOString(),
+            // Required fields from Debt type
+            createDate: debts[0]?.createDate || new Date().toISOString(),
+            userId: debts[0]?.userId || '',
+            // Optional fields that may exist on grouped debts
+            archived: false
+        } as DebtItem;
+    }, []);
+
+    // Helper function to process items with grouping
+    const processItemsWithGrouping = useCallback((items: ComponentItem[]) => {
+        const debtGroups = canGroupDebts(items);
+        const processedItems: ComponentItem[] = [];
+        const usedDebtIds = new Set<string>();
+
+        // Add grouped debts
+        debtGroups.forEach((debts, groupKey) => {
+            const isGrouped = groupedDebts.has(groupKey);
+
+            if (isGrouped && debts.length >= 2) {
+                // Show as grouped
+                processedItems.push(createGroupedDebt(debts, groupKey));
+                debts.forEach(debt => usedDebtIds.add(debt._id));
+            } else {
+                // Show individually (not grouped or only one item)
+                debts.forEach(debt => processedItems.push(debt));
+                debts.forEach(debt => usedDebtIds.add(debt._id));
+            }
+        });
+
+        // Add non-debt items
+        items.filter(item => item.type !== 'debt').forEach(item => {
+            processedItems.push(item);
+        });
+
+        return processedItems;
+    }, [canGroupDebts, groupedDebts, createGroupedDebt]);
+
     // Ensure all items are included in custom order when in custom mode and items change
     useEffect(() => {
         if (typeof window !== 'undefined' && isCustomOrderHydrated && sortMode === 'custom' && customOrder.length > 0) {
@@ -310,7 +437,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                 setCustomOrder(updatedOrder);
             }
         }
-    }, [clientItems, clientArchivedItems, showArchived, isCustomOrderHydrated, sortMode]); // Run when items or view changes
+    }, [clientItems, clientArchivedItems, showArchived, isCustomOrderHydrated, sortMode, customOrder, processItemsWithGrouping]); // Run when items or view changes
 
     // Save sort mode to localStorage whenever it changes
     useEffect(() => {
@@ -447,126 +574,8 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
         });
     }, []);
 
-    // Helper function to create a grouping key for debts
-    const getDebtGroupKey = (debt: any) => {
-        return `${debt.withWho}:${debt.theyPayMe}`;
-    };
 
-    // Helper function to check if debts can be grouped
-    const canGroupDebts = (debts: any[]) => {
-        const debtGroups = new Map<string, any[]>();
 
-        debts.filter(item => item.type === 'debt').forEach(debt => {
-            const groupKey = getDebtGroupKey(debt);
-            if (!debtGroups.has(groupKey)) {
-                debtGroups.set(groupKey, []);
-            }
-            debtGroups.get(groupKey)!.push(debt);
-        });
-
-        return debtGroups;
-    };
-
-    // Helper function to create grouped debt item
-    const createGroupedDebt = (debts: any[], groupKey: string) => {
-        const [withWho, theyPayMe] = groupKey.split(':');
-
-        // Group debts by currency
-        const currencyTotals = new Map<string, {
-            amount: number;
-            totalPaid: number;
-            remainingAmount: number;
-            transactionCount: number;
-        }>();
-
-        debts.forEach(debt => {
-            const currency = debt.currency || 'USD';
-            const current = currencyTotals.get(currency) || {
-                amount: 0,
-                totalPaid: 0,
-                remainingAmount: 0,
-                transactionCount: 0
-            };
-
-            current.amount += debt.amount || 0;
-            current.totalPaid += debt.totalPaid || 0;
-            current.transactionCount += debt.transactionCount || 0;
-            current.remainingAmount = current.amount - current.totalPaid;
-
-            currencyTotals.set(currency, current);
-        });
-
-        // Convert to array for easier handling
-        const currencyBreakdown = Array.from(currencyTotals.entries()).map(([currency, totals]) => ({
-            currency,
-            ...totals,
-            paymentStatus: totals.remainingAmount <= 0 ? 'paid' :
-                totals.totalPaid > 0 ? 'partially_paid' : 'unpaid'
-        }));
-
-        // Calculate overall totals (for legacy compatibility, use first currency)
-        const totalAmount = debts.reduce((sum, debt) => sum + (debt.amount || 0), 0);
-        const totalPaid = debts.reduce((sum, debt) => sum + (debt.totalPaid || 0), 0);
-        const remainingAmount = totalAmount - totalPaid;
-        const currency = debts[0]?.currency || 'USD';
-        const transactionCount = debts.reduce((sum, debt) => sum + (debt.transactionCount || 0), 0);
-
-        // Determine overall payment status
-        let paymentStatus = 'unpaid';
-        if (remainingAmount <= 0) {
-            paymentStatus = 'paid';
-        } else if (totalPaid > 0) {
-            paymentStatus = 'partially_paid';
-        }
-
-        return {
-            _id: `grouped-${groupKey}`,
-            type: 'debt',
-            withWho,
-            theyPayMe: theyPayMe === 'true',
-            amount: totalAmount,
-            totalPaid,
-            remainingAmount,
-            currency,
-            paymentStatus,
-            transactionCount,
-            currencyBreakdown, // New field with per-currency breakdown
-            description: `${debts.length} debts grouped`,
-            name: `Grouped: ${withWho}`,
-            isGrouped: true,
-            groupedItems: debts,
-            editDate: Math.max(...debts.map(d => new Date(d.editDate || 0).getTime()))
-        };
-    };
-
-    // Helper function to process items with grouping
-    const processItemsWithGrouping = (items: any[]) => {
-        const debtGroups = canGroupDebts(items);
-        const processedItems: any[] = [];
-        const usedDebtIds = new Set<string>();
-
-        // Add grouped debts
-        debtGroups.forEach((debts, groupKey) => {
-            const isGrouped = groupedDebts.has(groupKey);
-
-            if (isGrouped && debts.length >= 2) {
-                // Show as grouped
-                processedItems.push(createGroupedDebt(debts, groupKey));
-                debts.forEach(debt => usedDebtIds.add(debt._id));
-            } else {
-                // Show individually (not grouped or only one item)
-                debts.forEach(debt => processedItems.push(debt));
-                debts.forEach(debt => usedDebtIds.add(debt._id));
-            }
-        });
-
-        // Add non-debt items
-        items.filter(item => item.type !== 'debt').forEach(item => {
-            processedItems.push(item);
-        });
-
-        return processedItems;
-    };
 
     // Function to toggle debt grouping
     const toggleDebtGrouping = (groupKey: string) => {
@@ -663,6 +672,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
             }
             showToast.update(toastId, successMessage, 'success');
         } catch (error) {
+            console.error('Failed to toggle archive status:', error);
             showToast.update(toastId, errorMessage, 'error');
         }
         setContextMenu(null);
@@ -816,7 +826,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                     <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full p-6">
                         <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
                         <p className="text-sm text-muted-foreground mb-6">
-                            Are you sure you want to delete "{itemToDelete?.name || itemToDelete?.description || 'this item'}"?
+                            Are you sure you want to delete &ldquo;{itemToDelete?.name || itemToDelete?.description || 'this item'}&rdquo;?
                             This action cannot be undone.
                         </p>
                         <div className="flex gap-3 justify-end">
@@ -959,7 +969,7 @@ function ItemCard(props: any) {
     // Remove overflow-hidden so child content can overflow if needed
     const {
         showJson,
-        cardSize,
+        cardSize: _cardSize,
         onUpdateSize,
         isExpanded,
         onClick,
@@ -1107,7 +1117,7 @@ function Currency({ data, showJson, onUpdateSize }: CurrencyProps) {
         }
 
         onUpdateSize(targetSize);
-    }, [activeTab, breakdown.length, data.currency, isHydrated]); // Include isHydrated
+    }, [activeTab, breakdown.length, data.currency, isHydrated, onUpdateSize]); // Include isHydrated and onUpdateSize
 
     const tabs = [
         { id: 'simple' as const, icon: List, label: 'Simple view' },
@@ -1223,7 +1233,7 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
         }
     };
 
-    const statusInfo = getPaymentStatusInfo();
+    const _statusInfo = getPaymentStatusInfo();
 
     // Handle click on the debt content (not the icons)
     const handleDebtClick = (e: React.MouseEvent) => {

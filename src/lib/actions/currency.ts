@@ -1,6 +1,7 @@
 "use server";
 import { getDb } from "@/lib/db";
 import { requireAuth } from "./auth";
+import type { Transaction } from "../types";
 
 // Currency evolution data types
 interface CurrencyEvolutionDataPoint {
@@ -39,13 +40,14 @@ async function getCurrencyEvolutionDataInternal(currency: string, userId: string
     });
 
     // Group transactions by date
-    const transactionsByDate = new Map<string, any[]>();
+    const transactionsByDate = new Map<string, Transaction[]>();
     transactions.forEach(transaction => {
-        const dateKey = new Date(transaction.date).toDateString();
+        const txn = transaction as unknown as Transaction;
+        const dateKey = new Date(txn.date).toDateString();
         if (!transactionsByDate.has(dateKey)) {
             transactionsByDate.set(dateKey, []);
         }
-        transactionsByDate.get(dateKey)!.push(transaction);
+        transactionsByDate.get(dateKey)!.push(txn);
     });
 
     // Process transactions chronologically

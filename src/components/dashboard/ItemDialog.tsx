@@ -68,6 +68,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemUpdated(updated);
             showToast.update(toastId, toastMessages.saved, 'success');
         } catch (error) {
+            console.error('Failed to save item:', error);
             showToast.update(toastId, toastMessages.saveError, 'error');
         } finally {
             setLoading(false);
@@ -83,6 +84,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemDeleted(item._id);
             showToast.update(toastId, toastMessages.deleted, 'success');
         } catch (error) {
+            console.error('Failed to delete item:', error);
             showToast.update(toastId, toastMessages.deleteError, 'error');
         } finally {
             setDeleting(false);
@@ -100,6 +102,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemArchived(archived);
             showToast.update(toastId, 'Item archived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to archive item:', error);
             showToast.update(toastId, 'Failed to archive item', 'error');
         } finally {
             setArchiving(false);
@@ -117,6 +120,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemUnarchived(unarchived);
             showToast.update(toastId, 'Item unarchived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to unarchive item:', error);
             showToast.update(toastId, 'Failed to unarchive item', 'error');
         } finally {
             setUnarchiving(false);

@@ -25,6 +25,7 @@ export function AuthGuard({
                 const user = await getCurrentUser();
                 setIsAuthenticated(!!user);
             } catch (error) {
+                console.error('Auth check failed:', error);
                 setIsAuthenticated(false);
             } finally {
                 setIsLoading(false);

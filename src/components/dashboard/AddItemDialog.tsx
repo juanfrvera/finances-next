@@ -36,14 +36,16 @@ interface ServiceItem {
     isManual: boolean;
     notes?: string;
 }
+
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
+type AnyItem = ServiceItem | AccountItem | DebtItem | CurrencyItem;
 
 export default function AddItemDialog({ 
     onItemCreated, 
     availableCurrencies = [], 
     availablePersons = [] 
 }: { 
-    onItemCreated: (item: any) => void, 
+    onItemCreated: (item: AnyItem) => void, 
     availableCurrencies?: string[], 
     availablePersons?: string[] 
 }) {
@@ -127,18 +129,23 @@ function TypeBox({ label, description, onClick }: { label: string; description: 
     );
 }
 
-function CreateServiceForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
+function CreateServiceForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: AnyItem) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
-    async function handleSubmit(data: { name: string; cost: number; currency: string; isManual: boolean }) {
+    async function handleSubmit(data: Omit<ServiceItem, 'type'>) {
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'service' as const, ...data };
+            const item: ServiceItem = { type: 'service' as const, ...data };
             const created = await addItemToDb(item);
-            onItemCreated(created);
-            showToast.update(toastId, toastMessages.created, 'success');
-            onClose();
+            if (created) {
+                onItemCreated(created as AnyItem);
+                showToast.update(toastId, toastMessages.created, 'success');
+                onClose();
+            } else {
+                throw new Error('Failed to create item');
+            }
         } catch (error) {
+            console.error('Failed to create service:', error);
             showToast.update(toastId, toastMessages.createError, 'error');
         } finally {
             setLoading(false);
@@ -149,18 +156,23 @@ function CreateServiceForm({ onClose, onItemCreated, availableCurrencies = [] }:
     );
 }
 
-function CreateAccountForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
+function CreateAccountForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: AnyItem) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
-    async function handleSubmit(data: { name: string; balance: number; currency: string }) {
+    async function handleSubmit(data: Omit<AccountItem, 'type'>) {
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'account' as const, ...data };
+            const item: AccountItem = { type: 'account' as const, ...data };
             const created = await addItemToDb(item);
-            onItemCreated(created);
-            showToast.update(toastId, toastMessages.created, 'success');
-            onClose();
+            if (created) {
+                onItemCreated(created as AnyItem);
+                showToast.update(toastId, toastMessages.created, 'success');
+                onClose();
+            } else {
+                throw new Error('Failed to create item');
+            }
         } catch (error) {
+            console.error('Failed to create account:', error);
             showToast.update(toastId, toastMessages.createError, 'error');
         } finally {
             setLoading(false);
@@ -171,18 +183,23 @@ function CreateAccountForm({ onClose, onItemCreated, availableCurrencies = [] }:
     );
 }
 
-function CreateDebtForm({ onClose, onItemCreated, availableCurrencies = [], availablePersons = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[], availablePersons?: string[] }) {
+function CreateDebtForm({ onClose, onItemCreated, availableCurrencies = [], availablePersons = [] }: { onClose: () => void, onItemCreated: (item: AnyItem) => void, availableCurrencies?: string[], availablePersons?: string[] }) {
     const [loading, setLoading] = useState(false);
-    async function handleSubmit(data: { description: string; withWho: string; amount: number; currency: string; theyPayMe: boolean }) {
+    async function handleSubmit(data: Omit<DebtItem, 'type'>) {
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'debt' as const, ...data };
+            const item: DebtItem = { type: 'debt' as const, ...data };
             const created = await addItemToDb(item);
-            onItemCreated(created);
-            showToast.update(toastId, toastMessages.created, 'success');
-            onClose();
+            if (created) {
+                onItemCreated(created as AnyItem);
+                showToast.update(toastId, toastMessages.created, 'success');
+                onClose();
+            } else {
+                throw new Error('Failed to create item');
+            }
         } catch (error) {
+            console.error('Failed to create debt:', error);
             showToast.update(toastId, toastMessages.createError, 'error');
         } finally {
             setLoading(false);
@@ -193,18 +210,23 @@ function CreateDebtForm({ onClose, onItemCreated, availableCurrencies = [], avai
     );
 }
 
-function CreateCurrencyForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: any) => void, availableCurrencies?: string[] }) {
+function CreateCurrencyForm({ onClose, onItemCreated, availableCurrencies = [] }: { onClose: () => void, onItemCreated: (item: AnyItem) => void, availableCurrencies?: string[] }) {
     const [loading, setLoading] = useState(false);
-    async function handleSubmit(data: { currency: string }) {
+    async function handleSubmit(data: Pick<CurrencyItem, 'currency'>) {
         setLoading(true);
         const toastId = showToast.loading(toastMessages.creating);
         try {
-            const item = { type: 'currency' as const, ...data };
+            const item: CurrencyItem = { type: 'currency' as const, ...data };
             const created = await addItemToDb(item);
-            onItemCreated(created);
-            showToast.update(toastId, toastMessages.created, 'success');
-            onClose();
+            if (created) {
+                onItemCreated(created as AnyItem);
+                showToast.update(toastId, toastMessages.created, 'success');
+                onClose();
+            } else {
+                throw new Error('Failed to create item');
+            }
         } catch (error) {
+            console.error('Failed to create currency:', error);
             showToast.update(toastId, toastMessages.createError, 'error');
         } finally {
             setLoading(false);

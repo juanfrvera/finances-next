@@ -91,6 +91,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
 
             showToast.update(toastId, toastMessages.saved, 'success');
         } catch (error) {
+            console.error('Failed to save item:', error);
             showToast.update(toastId, toastMessages.saveError, 'error');
         } finally {
             setLoading(false);
@@ -115,6 +116,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             showToast.update(toastId, 'Payment recorded successfully!', 'success');
             setActiveView('summary'); // Return to summary view
         } catch (error) {
+            console.error('Failed to record payment:', error);
             showToast.update(toastId, 'Failed to record payment', 'error');
         } finally {
             setPaymentLoading(false);
@@ -129,6 +131,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemDeleted(currentItem._id);
             showToast.update(toastId, toastMessages.deleted, 'success');
         } catch (error) {
+            console.error('Failed to delete item:', error);
             showToast.update(toastId, toastMessages.deleteError, 'error');
         } finally {
             setDeleting(false);
@@ -148,6 +151,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemArchived(archivedWithStatus);
             showToast.update(toastId, 'Debt archived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to archive debt:', error);
             showToast.update(toastId, 'Failed to archive debt', 'error');
         } finally {
             setArchiving(false);
@@ -174,6 +178,7 @@ export default function DebtDialog({ open, onOpenChange, item, onItemUpdated, on
 
             showToast.update(toastId, 'Debt unarchived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to unarchive debt:', error);
             showToast.update(toastId, 'Failed to unarchive debt', 'error');
         } finally {
             setUnarchiving(false);

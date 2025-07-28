@@ -2,6 +2,12 @@
  * Utility for managing debt grouping state in localStorage
  */
 
+// Minimal debt item for grouping purposes
+type DebtForGrouping = {
+    withWho: string;
+    theyPayMe: boolean;
+};
+
 const DEBT_GROUPING_STORAGE_KEY = 'debt-grouping-state';
 
 export interface DebtGroupingState {
@@ -81,7 +87,7 @@ export class DebtGroupingStorage {
 
             // Create set of valid group keys from current debt items
             const validGroupKeys = new Set<string>();
-            const debtGroups = new Map<string, any[]>();
+            const debtGroups = new Map<string, DebtForGrouping[]>();
 
             currentDebtItems.forEach(debt => {
                 const groupKey = `${debt.withWho}:${debt.theyPayMe}`;
