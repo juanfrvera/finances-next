@@ -119,70 +119,18 @@ Resources:
           DB_NAME: !Ref DBName
           STATIC_BUCKET: !Ref StaticAssetsBucket
           NEXT_TELEMETRY_DISABLED: '1'
-      Code: !If
-        - HasContainerImage
-        - ImageUri: !Ref ContainerImageUri
-        - ZipFile: |
-            // Placeholder Lambda function
-            exports.handler = async (event, context) => {
-              console.log('Event:', JSON.stringify(event, null, 2));
-              
-              // Basic routing for Next.js pages
-              const path = event.path || event.rawPath || '/';
-              const method = event.httpMethod || event.requestContext?.http?.method || 'GET';
-              
-              // Handle static assets
-              if (path.startsWith('/_next/static/') || path.startsWith('/static/')) {
+      Code: 
+        !If
+          - HasContainerImage
+          - ImageUri: !Ref ContainerImageUri
+          - ZipFile: |
+              exports.handler = async (event, context) => {
                 return {
-                  statusCode: 302,
-                  headers: {
-                    Location: `https://${process.env.STATIC_BUCKET}.s3.amazonaws.com${path}`,
-                    'Cache-Control': 'public, max-age=31536000, immutable'
-                  }
+                  statusCode: 200,
+                  headers: { 'Content-Type': 'text/html' },
+                  body: '<h1>Lambda deployment successful!</h1>'
                 };
-              }
-            
-            // Handle favicon and other static files
-            if (path.match(/\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot)$/)) {
-              return {
-                statusCode: 302,
-                headers: {
-                  Location: `https://${process.env.STATIC_BUCKET}.s3.amazonaws.com${path}`,
-                  'Cache-Control': 'public, max-age=86400'
-                }
               };
-            }
-            
-            // Basic HTML response for now
-            const html = `
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <title>Finances Dashboard</title>
-                  <meta charset="utf-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1">
-                </head>
-                <body>
-                  <div id="__next">
-                    <h1>Finances Dashboard</h1>
-                    <p>Lambda deployment successful!</p>
-                    <p>Path: ${path}</p>
-                    <p>Method: ${method}</p>
-                    <p>Deploy your Next.js build to complete the setup.</p>
-                  </div>
-                </body>
-              </html>
-            `;
-            
-            return {
-              statusCode: 200,
-              headers: {
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-              },
-              body: html
-            };
-          };
 
   # API Gateway V2 (HTTP API - better for Lambda integration)
   HttpApi:
