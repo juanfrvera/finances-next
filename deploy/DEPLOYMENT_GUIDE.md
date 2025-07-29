@@ -111,20 +111,9 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
         {
             "Effect": "Allow",
             "Action": [
-                "apigateway:GET",
-                "apigateway:POST",
-                "apigateway:PUT",
-                "apigateway:DELETE",
-                "apigateway:PATCH"
+                "apigateway:*"
             ],
-            "Resource": [
-                "arn:aws:apigateway:*::/restapis",
-                "arn:aws:apigateway:*::/restapis/*",
-                "arn:aws:apigateway:*::/apis",
-                "arn:aws:apigateway:*::/apis/*",
-                "arn:aws:apigateway:*::/domainnames",
-                "arn:aws:apigateway:*::/domainnames/*"
-            ]
+            "Resource": "*"
         },
         {
             "Effect": "Allow",
