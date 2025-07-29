@@ -57,7 +57,7 @@ Resources:
             AllowedOrigins: ['*']
             MaxAge: 3000
 
-  # S3 Bucket Policy for public read access to static assets
+  # S3 Bucket Policy for CloudFront Origin Access Control  
   StaticAssetsBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -65,7 +65,8 @@ Resources:
       PolicyDocument:
         Statement:
           - Effect: Allow
-            Principal: '*'
+            Principal:
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub ${StaticAssetsBucket}/*
 
@@ -220,8 +221,8 @@ Resources:
           # S3 Origin for static assets
           - Id: S3Origin
             DomainName: !GetAtt StaticAssetsBucket.RegionalDomainName
-            S3OriginConfig:
-              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOAI}
+            OriginAccessControlId: !Ref CloudFrontOAC
+            S3OriginConfig: {}
         DefaultCacheBehavior:
           TargetOriginId: ApiGatewayOrigin
           ViewerProtocolPolicy: redirect-to-https
@@ -255,12 +256,16 @@ Resources:
             CachedMethods: [GET, HEAD]
             CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
 
-  # CloudFront Origin Access Identity for S3
-  CloudFrontOAI:
-    Type: AWS::CloudFront::OriginAccessIdentity
+  # CloudFront Origin Access Control for S3
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      OriginAccessIdentityConfig:
-        Comment: !Sub OAI for ${AWS::StackName} static assets
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-S3-OAC
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+        Description: !Sub OAC for ${AWS::StackName} static assets
 
 Outputs:
   ApiGatewayUrl:
