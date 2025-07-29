@@ -65,6 +65,32 @@ jobs:
         echo "Template: $TEMPLATE_FILE"
         echo "Container Image: $IMAGE_URI"
         
+        # Check if stack exists and its status
+        echo "🔍 Checking existing stack status..."
+        STACK_STATUS=$(aws cloudformation describe-stacks \
+          --stack-name "$STACK_NAME" \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].StackStatus' \
+          --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+        
+        echo "Current stack status: $STACK_STATUS"
+        
+        # Delete stack if it's in ROLLBACK_COMPLETE state
+        if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+          echo "⚠️ Stack is in ROLLBACK_COMPLETE state, deleting it first..."
+          aws cloudformation delete-stack \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Stack deleted successfully"
+          STACK_STATUS="DOES_NOT_EXIST"
+        fi
+        
         # Deploy with verbose output and error handling
         set +e  # Don't exit on error so we can capture details
         
