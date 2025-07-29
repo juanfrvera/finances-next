@@ -55,13 +55,19 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
             "Action": [
                 "cloudformation:CreateStack",
                 "cloudformation:UpdateStack",
+                "cloudformation:DeleteStack",
                 "cloudformation:DescribeStacks",
                 "cloudformation:DescribeStackEvents",
                 "cloudformation:DescribeStackResource",
                 "cloudformation:DescribeStackResources",
                 "cloudformation:GetTemplate",
                 "cloudformation:ListStackResources",
-                "cloudformation:ValidateTemplate"
+                "cloudformation:ValidateTemplate",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:ListChangeSets"
             ],
             "Resource": [
                 "arn:aws:cloudformation:*:*:stack/finances-next-*/*"
@@ -112,7 +118,11 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
             ],
             "Resource": [
                 "arn:aws:apigateway:*::/restapis",
-                "arn:aws:apigateway:*::/restapis/*"
+                "arn:aws:apigateway:*::/restapis/*",
+                "arn:aws:apigateway:*::/apis",
+                "arn:aws:apigateway:*::/apis/*",
+                "arn:aws:apigateway:*::/domainnames",
+                "arn:aws:apigateway:*::/domainnames/*"
             ]
         },
         {
@@ -121,9 +131,6 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
                 "s3:CreateBucket",
                 "s3:DeleteBucket",
                 "s3:GetBucketLocation",
-                "s3:GetBucketPolicy",
-                "s3:PutBucketPolicy",
-                "s3:DeleteBucketPolicy",
                 "s3:GetBucketVersioning",
                 "s3:PutBucketVersioning",
                 "s3:GetBucketCORS",
@@ -133,13 +140,23 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
                 "s3:DeleteBucketWebsite",
                 "s3:GetBucketPublicAccessBlock",
                 "s3:PutBucketPublicAccessBlock",
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:DeleteObject",
                 "s3:ListBucket"
             ],
             "Resource": [
-                "arn:aws:s3:::finances-next-*",
+                "arn:aws:s3:::finances-next-*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketPolicy",
+                "s3:PutBucketPolicy",
+                "s3:DeleteBucketPolicy",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
                 "arn:aws:s3:::finances-next-*/*"
             ]
         },
