@@ -6,6 +6,9 @@ import DashboardClient from "@/components/dashboard/DashboardClient";
 import { redirect } from "next/navigation";
 import { Db } from "mongodb";
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic';
+
 // Helper function to calculate debt payment statuses
 async function calculateDebtPaymentStatuses(db: Db, debtItems: DbItem[]): Promise<Record<string, PaymentStatusInfo>> {
   const debtItemIds = debtItems.map((item) => item._id);

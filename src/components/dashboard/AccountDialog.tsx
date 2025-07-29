@@ -13,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
+import { Transaction } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 type AccountAction = 'updateBalance' | 'transactions' | 'editInfo' | 'addTransaction' | null;
@@ -37,8 +38,14 @@ function ActionBox({ label, description, onClick }: { label: string, description
     );
 }
 
+// Chart data types
+interface BalanceDataPoint {
+    date: string;
+    balance: number;
+}
+
 function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalance: number }) {
-    const [chartData, setChartData] = useState<any[]>([]);
+    const [chartData, setChartData] = useState<BalanceDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -57,7 +64,7 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
 
                 // Start with current balance and work backwards
                 let runningBalance = Math.round(currentBalance * 100) / 100;
-                const balanceData: any[] = [];
+                const balanceData: BalanceDataPoint[] = [];
 
                 // Add current balance as the last point
                 balanceData.unshift({
@@ -69,9 +76,9 @@ function BalanceChart({ itemId, currentBalance }: { itemId: string; currentBalan
                 const sortedTransactions = [...transactions];
 
                 // Work backwards through transactions to calculate historical balances
-                sortedTransactions.forEach((transaction, index) => {
-                    const transactionAmount = (transaction as any).amount || 0;
-                    const transactionDate = (transaction as any).date || new Date().toISOString();
+                sortedTransactions.forEach((transaction, _index) => {
+                    const transactionAmount = (transaction as Transaction).amount || 0;
+                    const transactionDate = (transaction as Transaction).date || new Date().toISOString();
 
                     // Subtract this transaction to get the balance before it
                     runningBalance -= transactionAmount;
@@ -265,6 +272,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             onItemUpdated(updated);
             showToast.update(toastId, toastMessages.saved, 'success');
         } catch (error) {
+            console.error('Failed to save item:', error);
             showToast.update(toastId, toastMessages.saveError, 'error');
         } finally {
             setLoading(false);
@@ -281,6 +289,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             onItemUpdated(updated);
             showToast.update(toastId, 'Balance updated successfully!', 'success');
         } catch (error) {
+            console.error('Failed to update balance:', error);
             showToast.update(toastId, 'Failed to update balance', 'error');
         } finally {
             setLoading(false);
@@ -310,6 +319,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             showToast.update(toastId, 'Transaction added successfully!', 'success');
             setSelectedAction('transactions'); // Go back to transactions list
         } catch (error) {
+            console.error('Failed to create transaction:', error);
             showToast.update(toastId, 'Failed to add transaction', 'error');
         } finally {
             setLoading(false);
@@ -324,6 +334,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             onItemDeleted(item._id);
             showToast.update(toastId, "Account deleted successfully", 'success');
         } catch (error) {
+            console.error('Failed to delete item:', error);
             showToast.update(toastId, "Failed to delete account", 'error');
         } finally {
             setDeleting(false);
@@ -342,6 +353,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             onItemArchived(archived);
             showToast.update(toastId, 'Account archived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to archive item:', error);
             showToast.update(toastId, 'Failed to archive account', 'error');
         } finally {
             setArchiving(false);
@@ -359,6 +371,7 @@ export default function AccountDialog({ open, onOpenChange, item: initialItem, o
             onItemUnarchived(unarchived);
             showToast.update(toastId, 'Account unarchived successfully!', 'success');
         } catch (error) {
+            console.error('Failed to unarchive item:', error);
             showToast.update(toastId, 'Failed to unarchive account', 'error');
         } finally {
             setUnarchiving(false);

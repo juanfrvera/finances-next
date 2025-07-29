@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
   
   // Optimize for production
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // Disabled - critters package is deprecated and causes build failures
+    // CSS optimization should be handled by your bundler (Tailwind, PostCSS, etc.) instead
   },
   
   // Configure for better AWS deployment
