@@ -177,9 +177,9 @@ Resources:
       ApiId: !Ref HttpApi
       StageName: !Ref Environment
       AutoDeploy: true
-      ThrottleSettings:
-        BurstLimit: 100
-        RateLimit: 50
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
 
   # Lambda Permission for API Gateway V2
   LambdaApiGatewayPermission:
