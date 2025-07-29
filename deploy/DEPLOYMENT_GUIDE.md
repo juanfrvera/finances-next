@@ -61,6 +61,7 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
                 "cloudformation:DescribeStackResource",
                 "cloudformation:DescribeStackResources",
                 "cloudformation:GetTemplate",
+                "cloudformation:GetTemplateSummary",
                 "cloudformation:ListStackResources",
                 "cloudformation:ValidateTemplate",
                 "cloudformation:CreateChangeSet",
@@ -166,11 +167,18 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
                 "cloudfront:CreateDistribution",
                 "cloudfront:GetDistribution",
                 "cloudfront:UpdateDistribution",
+                "cloudfront:DeleteDistribution",
+                "cloudfront:CreateOriginAccessControl",
+                "cloudfront:GetOriginAccessControl",
+                "cloudfront:UpdateOriginAccessControl",
+                "cloudfront:DeleteOriginAccessControl",
                 "cloudfront:CreateCloudFrontOriginAccessIdentity",
                 "cloudfront:GetCloudFrontOriginAccessIdentity",
                 "cloudfront:UpdateCloudFrontOriginAccessIdentity",
+                "cloudfront:DeleteCloudFrontOriginAccessIdentity",
                 "cloudfront:TagResource",
-                "cloudfront:UntagResource"
+                "cloudfront:UntagResource",
+                "cloudfront:ListTagsForResource"
             ],
             "Resource": "*"
         },
