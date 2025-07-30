@@ -196,7 +196,9 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
                 "logs:DeleteLogGroup",
                 "logs:DescribeLogGroups",
                 "logs:TagLogGroup",
-                "logs:UntagLogGroup"
+                "logs:UntagLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:DeleteRetentionPolicy"
             ],
             "Resource": [
                 "arn:aws:logs:*:*:log-group:/aws/lambda/finances-next-*"

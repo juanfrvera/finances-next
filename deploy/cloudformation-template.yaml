@@ -107,6 +107,7 @@ Resources:
   # Lambda Function for Next.js SSR
   NextJSLambda:
     Type: AWS::Lambda::Function
+    DependsOn: LambdaLogGroup
     Properties:
       FunctionName: !Sub ${AWS::StackName}-nextjs-function
       PackageType: !If [HasContainerImage, 'Image', 'Zip']
