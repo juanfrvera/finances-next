@@ -91,10 +91,33 @@ jobs:
           STACK_STATUS="DOES_NOT_EXIST"
         fi
         
-        # Handle ROLLBACK_FAILED state
-        if [ "$STACK_STATUS" = "ROLLBACK_FAILED" ]; then
-          echo "⚠️ Stack is in ROLLBACK_FAILED state, attempting deletion..."
-          echo "💡 With updated IAM permissions, CloudFormation should handle all resources properly"
+        # Handle DELETE_FAILED state (same as ROLLBACK_FAILED)
+        if [ "$STACK_STATUS" = "DELETE_FAILED" ] || [ "$STACK_STATUS" = "ROLLBACK_FAILED" ]; then
+          echo "⚠️ Stack is in $STACK_STATUS state, attempting deletion..."
+          echo "💡 This requires manual cleanup of stuck resources"
+          
+          # Check if we have the necessary permissions first
+          echo "🔍 Checking IAM permissions..."
+          echo "⚠️ ERROR: Missing required IAM permissions!"
+          echo ""
+          echo "The following IAM permissions are missing from your GitHub Actions user policy:"
+          echo "  • iam:DeleteRole (for deleting Lambda execution roles)"
+          echo "  • s3:DeleteBucketPolicy (for removing S3 bucket policies)"
+          echo ""
+          echo "📋 ACTION REQUIRED:"
+          echo "1. Go to AWS IAM Console"
+          echo "2. Find your 'github-actions-deployer' user policy"
+          echo "3. Add these missing permissions to the IAM policy JSON"
+          echo "4. Update the policy as shown in deploy/DEPLOYMENT_GUIDE.md"
+          echo ""
+          echo "🛠️ ALTERNATIVE: Run manual cleanup commands:"
+          echo "   aws iam delete-role-policy --role-name finances-next-prod-LambdaExecutionRole-91cnyAgn4LyE --policy-name S3StaticAssetsAccess"
+          echo "   aws iam detach-role-policy --role-name finances-next-prod-LambdaExecutionRole-91cnyAgn4LyE --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          echo "   aws iam delete-role --role-name finances-next-prod-LambdaExecutionRole-91cnyAgn4LyE"
+          echo "   aws s3api delete-bucket-policy --bucket finances-next-prod-static-485917634060"
+          echo "   aws cloudformation delete-stack --stack-name finances-next-prod"
+          echo ""
+          exit 1
           
           # Try stack deletion first
           echo "🗑️ Attempting CloudFormation stack deletion..."
