@@ -68,8 +68,7 @@ Resources:
             Principal:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
-            Resource: !Sub ${StaticAssetsBucket}/*
-
+            Resource: !Sub arn:aws:s3:::${StaticAssetsBucket}/*
   # CloudWatch Log Group for Lambda
   LambdaLogGroup:
     Type: AWS::Logs::LogGroup
@@ -99,10 +98,10 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub ${StaticAssetsBucket}/*
+                Resource: !Sub arn:aws:s3:::${StaticAssetsBucket}/*
               - Effect: Allow
                 Action: s3:ListBucket
-                Resource: !Ref StaticAssetsBucket
+                Resource: !Sub arn:aws:s3:::${StaticAssetsBucket}
 
   # Lambda Function for Next.js SSR
   NextJSLambda:

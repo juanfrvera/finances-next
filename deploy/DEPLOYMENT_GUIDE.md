@@ -141,7 +141,15 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
             "Action": [
                 "s3:GetBucketPolicy",
                 "s3:PutBucketPolicy",
-                "s3:DeleteBucketPolicy",
+                "s3:DeleteBucketPolicy"
+            ],
+            "Resource": [
+                "arn:aws:s3:::finances-next-*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "s3:GetObject",
                 "s3:PutObject",
                 "s3:DeleteObject"
@@ -176,6 +184,7 @@ GitHub → GitHub Actions → Docker Build → ECR → Lambda Container → API 
             "Action": [
                 "iam:CreateRole",
                 "iam:GetRole",
+                "iam:DeleteRole",
                 "iam:AttachRolePolicy",
                 "iam:DetachRolePolicy",
                 "iam:PutRolePolicy",

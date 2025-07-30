@@ -91,9 +91,29 @@ jobs:
           STACK_STATUS="DOES_NOT_EXIST"
         fi
         
+        # Handle ROLLBACK_FAILED state
+        if [ "$STACK_STATUS" = "ROLLBACK_FAILED" ]; then
+          echo "⚠️ Stack is in ROLLBACK_FAILED state, attempting deletion..."
+          echo "💡 With updated IAM permissions, CloudFormation should handle all resources properly"
+          
+          # Try stack deletion - let CloudFormation handle all resources
+          aws cloudformation delete-stack \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Stack deleted successfully"
+          STACK_STATUS="DOES_NOT_EXIST"
+        fi
+        
         # Deploy with verbose output and error handling
         set +e  # Don't exit on error so we can capture details
         
+        echo "🚀 Starting CloudFormation deployment..."
         aws cloudformation deploy \
           --template-file "$TEMPLATE_FILE" \
           --stack-name "$STACK_NAME" \
@@ -114,12 +134,12 @@ jobs:
           echo "🔍 Fetching stack events for detailed error information..."
           echo ""
           
-          # Get stack events to show what went wrong
+          # Get all stack events to show what went wrong
           aws cloudformation describe-stack-events \
             --stack-name "$STACK_NAME" \
             --region ${{ env.AWS_REGION }} \
             --query 'StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED` || ResourceStatus==`DELETE_FAILED`].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}' \
-            --output table || echo "Could not fetch stack events"
+            --output table || echo "Could not fetch failed stack events"
           
           echo ""
           echo "📋 Recent stack events (last 10):"
@@ -132,6 +152,20 @@ jobs:
           echo ""
           echo "💡 To debug further, check the CloudFormation console or run:"
           echo "   aws cloudformation describe-stack-events --stack-name $STACK_NAME"
+          
+          # Check final stack status for guidance
+          FINAL_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || echo "UNKNOWN")
+          
+          echo ""
+          echo "📊 Final stack status: $FINAL_STATUS"
+          
+          if [ "$FINAL_STATUS" = "ROLLBACK_COMPLETE" ] || [ "$FINAL_STATUS" = "ROLLBACK_FAILED" ]; then
+            echo "💡 Stack is in rollback state. Next run will automatically clean up and retry."
+          fi
           
           exit $DEPLOY_EXIT_CODE
         fi
