@@ -96,18 +96,102 @@ jobs:
           echo "⚠️ Stack is in ROLLBACK_FAILED state, attempting deletion..."
           echo "💡 With updated IAM permissions, CloudFormation should handle all resources properly"
           
-          # Try stack deletion - let CloudFormation handle all resources
+          # Try stack deletion first
+          echo "🗑️ Attempting CloudFormation stack deletion..."
           aws cloudformation delete-stack \
             --stack-name "$STACK_NAME" \
             --region ${{ env.AWS_REGION }}
           
           echo "⏳ Waiting for stack deletion to complete..."
+          set +e  # Don't exit on error
           aws cloudformation wait stack-delete-complete \
             --stack-name "$STACK_NAME" \
             --region ${{ env.AWS_REGION }}
           
-          echo "✅ Stack deleted successfully"
-          STACK_STATUS="DOES_NOT_EXIST"
+          DELETE_EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          
+          if [ $DELETE_EXIT_CODE -ne 0 ]; then
+            echo "❌ Stack deletion failed, checking what resources are stuck..."
+            
+            # Get deletion failure details
+            echo "🔍 Fetching stack deletion events..."
+            aws cloudformation describe-stack-events \
+              --stack-name "$STACK_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'StackEvents[?ResourceStatus==`DELETE_FAILED`].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}' \
+              --output table || echo "Could not fetch delete failed events"
+            
+            echo ""
+            echo "�️ Attempting to manually clean up common stuck resources..."
+            
+            # Clean up IAM role that often gets stuck
+            echo "Cleaning up IAM execution role..."
+            ROLE_NAME=$(aws iam list-roles --query "Roles[?starts_with(RoleName, '$STACK_NAME-LambdaExecutionRole')].RoleName" --output text 2>/dev/null || echo "")
+            if [ -n "$ROLE_NAME" ] && [ "$ROLE_NAME" != "None" ]; then
+              echo "Found stuck IAM role: $ROLE_NAME"
+              
+              # Detach managed policies
+              aws iam list-attached-role-policies --role-name "$ROLE_NAME" --query 'AttachedPolicies[].PolicyArn' --output text 2>/dev/null | while read -r policy; do
+                if [ -n "$policy" ] && [ "$policy" != "None" ]; then
+                  echo "Detaching managed policy: $policy"
+                  aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$policy" 2>/dev/null || true
+                fi
+              done
+              
+              # Delete inline policies
+              aws iam list-role-policies --role-name "$ROLE_NAME" --query 'PolicyNames[]' --output text 2>/dev/null | while read -r policy; do
+                if [ -n "$policy" ] && [ "$policy" != "None" ]; then
+                  echo "Deleting inline policy: $policy"
+                  aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$policy" 2>/dev/null || true
+                fi
+              done
+              
+              # Delete the role
+              echo "Deleting IAM role: $ROLE_NAME"
+              aws iam delete-role --role-name "$ROLE_NAME" 2>/dev/null || true
+            fi
+            
+            # Clean up S3 bucket policy that often gets stuck
+            echo "Cleaning up S3 bucket policy..."
+            BUCKET_NAME=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '$STACK_NAME-static')].Name" --output text 2>/dev/null || echo "")
+            if [ -n "$BUCKET_NAME" ] && [ "$BUCKET_NAME" != "None" ]; then
+              echo "Found stuck S3 bucket: $BUCKET_NAME"
+              echo "Removing bucket policy..."
+              aws s3api delete-bucket-policy --bucket "$BUCKET_NAME" 2>/dev/null || true
+            fi
+            
+            # Wait a moment for changes to propagate
+            echo "⏳ Waiting 10 seconds for AWS changes to propagate..."
+            sleep 10
+            
+            # Retry stack deletion after manual cleanup
+            echo "🔄 Retrying stack deletion after manual cleanup..."
+            aws cloudformation delete-stack \
+              --stack-name "$STACK_NAME" \
+              --region ${{ env.AWS_REGION }}
+            
+            echo "⏳ Waiting for retry deletion to complete..."
+            aws cloudformation wait stack-delete-complete \
+              --stack-name "$STACK_NAME" \
+              --region ${{ env.AWS_REGION }}
+            
+            RETRY_EXIT_CODE=$?
+            if [ $RETRY_EXIT_CODE -eq 0 ]; then
+              echo "✅ Stack deleted successfully after manual cleanup"
+              STACK_STATUS="DOES_NOT_EXIST"
+            else
+              echo "❌ Stack deletion still failed after manual cleanup"
+              echo "� You may need to manually delete remaining resources in AWS console:"
+              echo "   1. Go to CloudFormation console and check failed resources"
+              echo "   2. Manually delete stuck IAM roles, S3 bucket policies, or other resources"
+              echo "   3. Then retry this deployment"
+              exit 1
+            fi
+          else
+            echo "✅ Stack deleted successfully"
+            STACK_STATUS="DOES_NOT_EXIST"
+          fi
         fi
         
         # Deploy with verbose output and error handling
