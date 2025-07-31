@@ -66,6 +66,38 @@ export type Currency = {
     accountBreakdown?: { id: string; name: string; balance: number }[];
 };
 
+export type Investment = {
+    _id: string;
+    name: string;
+    tag: string;
+    initialValue: number;
+    currency?: string;
+    currencyId?: string;
+    accountId?: string;
+    description?: string;
+    expectedReturn?: number;
+    expectedCashOutDate?: string;
+    currentValue?: number;
+    isFinished?: boolean;
+    type: 'investment';
+    createDate: string;
+    editDate: string;
+    userId: string;
+    // Calculated fields
+    totalGainLoss?: number;
+    gainLossPercentage?: number;
+    valueHistory?: InvestmentValueUpdate[];
+};
+
+export type InvestmentValueUpdate = {
+    _id: string;
+    investmentId: string;
+    value: number;
+    date: string;
+    note?: string;
+    userId: string;
+};
+
 // Entity types for the new entity system
 export type CurrencyEntity = {
     _id: string;
@@ -83,20 +115,21 @@ export type PersonEntity = {
     editDate: string;
 };
 
-export type Item = Account | Service | Debt | Currency;
+export type Item = Account | Service | Debt | Currency | Investment;
 
 // Component-level types that include database fields like 'archived'
 export type AccountItem = Account & { archived?: boolean };
 export type ServiceItem = Service & { archived?: boolean };
 export type DebtItem = Debt & { archived?: boolean };
 export type CurrencyItem = Currency & { archived?: boolean };
-export type ComponentItem = AccountItem | ServiceItem | DebtItem | CurrencyItem;
+export type InvestmentItem = Investment & { archived?: boolean };
+export type ComponentItem = AccountItem | ServiceItem | DebtItem | CurrencyItem | InvestmentItem;
 
 // Database item types (before processing)
 export type DbItem = {
     _id: string;
     userId: string;
-    type: 'account' | 'service' | 'debt' | 'currency';
+    type: 'account' | 'service' | 'debt' | 'currency' | 'investment';
     createDate: string;
     editDate: string;
     archived?: boolean;
@@ -119,6 +152,17 @@ export type DbItem = {
     totalPaid?: number;
     remainingAmount?: number;
     transactionCount?: number;
+    // Investment fields
+    tag?: string;
+    initialValue?: number;
+    expectedReturn?: number;
+    expectedCashOutDate?: string;
+    currentValue?: number;
+    isFinished?: boolean;
+    totalGainLoss?: number;
+    gainLossPercentage?: number;
+    valueHistory?: InvestmentValueUpdate[];
+    accountId?: string;
 };
 
 // Form data types
@@ -148,7 +192,24 @@ export type CurrencyFormData = {
     currency: string;
 };
 
-export type ItemFormData = AccountFormData | ServiceFormData | DebtFormData | CurrencyFormData;
+export type InvestmentFormData = {
+    name: string;
+    tag: string;
+    initialValue: number;
+    currency?: string;
+    accountId?: string;
+    description?: string;
+    expectedReturn?: number;
+    expectedCashOutDate?: string;
+};
+
+export type InvestmentValueUpdateFormData = {
+    value: number;
+    note?: string;
+    date?: string;
+};
+
+export type ItemFormData = AccountFormData | ServiceFormData | DebtFormData | CurrencyFormData | InvestmentFormData;
 
 // Payment status info
 export type PaymentStatusInfo = {

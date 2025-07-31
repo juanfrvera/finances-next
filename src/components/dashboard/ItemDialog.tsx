@@ -1,8 +1,9 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ServiceForm, CurrencyForm } from "./ItemForms";
+import { ServiceForm, CurrencyForm, InvestmentForm } from "./ItemForms";
 import AccountDialog from "./AccountDialog";
 import DebtDialog from "./DebtDialog";
+import InvestmentDialog from "./InvestmentDialog";
 import { useState } from "react";
 import { updateItemToDb, deleteItemFromDb, archiveItem, unarchiveItem } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showToast, toastMessages } from "@/lib/toast";
 
-export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [], availablePersons = [] }: {
+export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, onItemDeleted, onItemArchived, onItemUnarchived, availableCurrencies = [], availablePersons = [], availableAccounts = [] }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: any;
@@ -25,6 +26,7 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
     onItemUnarchived?: (item: any) => void;
     availableCurrencies?: string[];
     availablePersons?: string[];
+    availableAccounts?: any[];
 }) {
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -57,6 +59,21 @@ export default function ItemDialog({ open, onOpenChange, item, onItemUpdated, on
             onItemUnarchived={onItemUnarchived}
             availableCurrencies={availableCurrencies}
             availablePersons={availablePersons}
+        />;
+    }
+
+    // For investment items, use InvestmentDialog
+    if (item?.type === 'investment') {
+        return <InvestmentDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            item={item}
+            onItemUpdated={onItemUpdated}
+            onItemDeleted={onItemDeleted}
+            onItemArchived={onItemArchived}
+            onItemUnarchived={onItemUnarchived}
+            availableCurrencies={availableCurrencies}
+            availableAccounts={availableAccounts}
         />;
     }
 

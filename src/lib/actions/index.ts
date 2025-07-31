@@ -44,3 +44,12 @@ export {
     createPerson,
     getPersons,
 } from './entities';
+
+// Investment actions
+export {
+    addInvestmentValueUpdate,
+    getInvestmentValueHistory,
+    deleteInvestmentValueUpdate,
+    finishInvestment,
+    unfinishInvestment,
+} from './investments';

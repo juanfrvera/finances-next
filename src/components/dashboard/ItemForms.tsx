@@ -738,3 +738,351 @@ export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCan
         </form>
     );
 }
+
+export function InvestmentForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Investment", showDelete, onDelete, availableCurrencies = [], availableAccounts = [] }: {
+    initial?: any;
+    loading?: boolean;
+    deleting?: boolean;
+    onSubmit: (data: any) => void;
+    onCancel?: () => void;
+    submitLabel?: string;
+    showDelete?: boolean;
+    onDelete?: () => void;
+    availableCurrencies?: any[];
+    availableAccounts?: any[];
+}) {
+    const [form, setForm] = useState({
+        name: initial?.name || "",
+        tag: initial?.tag || "",
+        initialValue: initial?.initialValue?.toString() || "",
+        currency: initial?.currency || "",
+        description: initial?.description || "",
+        expectedReturn: initial?.expectedReturn?.toString() || "",
+        expectedCashOutDate: initial?.expectedCashOutDate || "",
+        accountId: initial?.accountId || "",
+    });
+
+    const [expectedCashOutDate, setExpectedCashOutDate] = useState<Date | undefined>(
+        initial?.expectedCashOutDate ? new Date(initial.expectedCashOutDate) : undefined
+    );
+
+    const [expectedReturnTab, setExpectedReturnTab] = useState<'percentage' | 'total'>('percentage');
+    const [expectedTotalValue, setExpectedTotalValue] = useState<string>("");
+
+    // Initialize expectedTotalValue when there's an initial value with expectedReturn
+    useEffect(() => {
+        if (initial?.expectedReturn && initial?.initialValue) {
+            const initialValue = parseFloat(initial.initialValue.toString());
+            const returnPercentage = parseFloat(initial.expectedReturn.toString());
+            if (!isNaN(initialValue) && !isNaN(returnPercentage)) {
+                const totalValue = initialValue * (1 + returnPercentage / 100);
+                setExpectedTotalValue(totalValue.toFixed(2));
+            }
+        }
+    }, [initial]);
+
+    // Calculate final amount from percentage
+    const calculateFinalAmount = () => {
+        const initialValue = parseFloat(form.initialValue);
+        const returnPercentage = parseFloat(form.expectedReturn);
+        if (isNaN(initialValue) || isNaN(returnPercentage) || initialValue <= 0) return "";
+        const finalAmount = initialValue * (1 + returnPercentage / 100);
+        return finalAmount.toFixed(2);
+    };
+
+    // Calculate return percentage from total value
+    const calculateReturnPercentage = () => {
+        const initialValue = parseFloat(form.initialValue);
+        const totalValue = parseFloat(expectedTotalValue);
+        if (isNaN(initialValue) || isNaN(totalValue) || initialValue <= 0) return "";
+        const returnPercentage = ((totalValue - initialValue) / initialValue) * 100;
+        return returnPercentage.toFixed(2);
+    };
+
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        
+        // Calculate expectedReturn based on the active tab
+        let calculatedExpectedReturn: number | undefined = undefined;
+        if (expectedReturnTab === 'percentage' && form.expectedReturn) {
+            calculatedExpectedReturn = parseFloat(form.expectedReturn);
+        } else if (expectedReturnTab === 'total' && expectedTotalValue) {
+            const initialValue = parseFloat(form.initialValue);
+            const totalValue = parseFloat(expectedTotalValue);
+            if (!isNaN(initialValue) && !isNaN(totalValue) && initialValue > 0) {
+                calculatedExpectedReturn = ((totalValue - initialValue) / initialValue) * 100;
+            }
+        }
+        
+        const data = {
+            name: form.name.trim(),
+            tag: form.tag.trim() || undefined,
+            initialValue: parseFloat(form.initialValue),
+            currency: form.currency || undefined,
+            description: form.description.trim() || undefined,
+            expectedReturn: calculatedExpectedReturn,
+            expectedCashOutDate: expectedCashOutDate?.toISOString(),
+            accountId: form.accountId || undefined,
+        };
+
+        onSubmit(data);
+    }
+
+    const isValid = form.name.trim() && form.initialValue && !isNaN(parseFloat(form.initialValue)) && parseFloat(form.initialValue) > 0;
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid w-full gap-1">
+                <Label htmlFor="investment-name">Name</Label>
+                <Input
+                    id="investment-name"
+                    name="name"
+                    placeholder="Investment name..."
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    required
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <Label htmlFor="investment-tag">Tag (optional)</Label>
+                <Input
+                    id="investment-tag"
+                    name="tag"
+                    placeholder="e.g., Stocks, Crypto, Real Estate..."
+                    value={form.tag}
+                    onChange={e => setForm(f => ({ ...f, tag: e.target.value }))}
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <Label htmlFor="investment-initialValue">Initial Value Invested</Label>
+                <Input
+                    id="investment-initialValue"
+                    name="initialValue"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.initialValue}
+                    onChange={e => setForm(f => ({ ...f, initialValue: e.target.value }))}
+                    required
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <SearchDropdown
+                    label="Currency (optional)"
+                    id="investment-currency"
+                    placeholder="Select or type currency..."
+                    value={form.currency}
+                    onChange={(value) => setForm(f => ({ ...f, currency: value }))}
+                    options={availableCurrencies.map(c => {
+                        if (typeof c === 'string') return c;
+                        if (typeof c === 'object' && c !== null) return c.name || c.currency || '';
+                        return '';
+                    }).filter(Boolean)}
+                    onCreateNew={(value) => setForm(f => ({ ...f, currency: value }))}
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <SearchDropdown
+                    label="Account (optional)"
+                    id="investment-account"
+                    placeholder="Select account..."
+                    value={form.accountId}
+                    onChange={(value) => setForm(f => ({ ...f, accountId: value }))}
+                    options={availableAccounts.map(account => {
+                        if (typeof account === 'object' && account !== null) {
+                            return `${account.name || 'Unknown'} (${account.balance || 0} ${account.currency || ''})`;
+                        }
+                        return String(account || '');
+                    }).filter(Boolean)}
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <Label htmlFor="investment-description">Description (optional)</Label>
+                <Textarea
+                    id="investment-description"
+                    name="description"
+                    placeholder="Investment details..."
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                />
+            </div>
+            <div className="grid w-full gap-1">
+                <Label>Expected Return (optional)</Label>
+                <div className="border rounded-lg">
+                    {/* Tab headers */}
+                    <div className="flex border-b">
+                        <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 text-sm font-medium border-r transition-colors ${
+                                expectedReturnTab === 'percentage' 
+                                    ? 'bg-primary text-primary-foreground' 
+                                    : 'bg-muted hover:bg-muted/80'
+                            }`}
+                            onClick={() => setExpectedReturnTab('percentage')}
+                        >
+                            Return %
+                        </button>
+                        <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                                expectedReturnTab === 'total' 
+                                    ? 'bg-primary text-primary-foreground' 
+                                    : 'bg-muted hover:bg-muted/80'
+                            }`}
+                            onClick={() => setExpectedReturnTab('total')}
+                        >
+                            Total Value
+                        </button>
+                    </div>
+                    
+                    {/* Tab content */}
+                    <div className="p-3">
+                        {expectedReturnTab === 'percentage' ? (
+                            <div className="space-y-2">
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="e.g., 10.5"
+                                    value={form.expectedReturn}
+                                    onChange={e => setForm(f => ({ ...f, expectedReturn: e.target.value }))}
+                                />
+                                {form.expectedReturn && form.initialValue && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Expected final amount: <span className="font-medium">{calculateFinalAmount()}</span>
+                                        {form.currency && ` ${form.currency}`}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Expected total value"
+                                    value={expectedTotalValue}
+                                    onChange={e => setExpectedTotalValue(e.target.value)}
+                                />
+                                {expectedTotalValue && form.initialValue && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Expected return: <span className="font-medium">{calculateReturnPercentage()}%</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="grid w-full gap-1">
+                <Label htmlFor="investment-expectedCashOutDate">Expected Cash Out Date (optional)</Label>
+                <DatePicker
+                    date={expectedCashOutDate}
+                    onDateChange={setExpectedCashOutDate}
+                />
+            </div>
+            <div className="flex gap-2 mt-2">
+                <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={!isValid || loading}
+                >
+                    {loading && <Spinner />} {loading ? "Creating..." : submitLabel}
+                </Button>
+                {onCancel && (
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
+                        Cancel
+                    </Button>
+                )}
+                {showDelete && onDelete && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={onDelete}
+                        disabled={deleting}
+                    >
+                        {deleting && <Spinner />} {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                )}
+            </div>
+        </form>
+    );
+}
+
+export function InvestmentValueUpdateForm({ initial, loading, onSubmit, onCancel }: {
+    initial?: any;
+    loading?: boolean;
+    onSubmit: (data: any) => void;
+    onCancel?: () => void;
+}) {
+    const [form, setForm] = useState({
+        value: initial?.value?.toString() || "",
+        note: initial?.note || "",
+    });
+
+    const [updateDate, setUpdateDate] = useState<Date | undefined>(
+        initial?.date ? new Date(initial.date) : new Date()
+    );
+
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        
+        const data = {
+            value: parseFloat(form.value),
+            note: form.note.trim() || undefined,
+            date: updateDate?.toISOString() || new Date().toISOString(),
+        };
+
+        onSubmit(data);
+    }
+
+    const isValid = form.value && !isNaN(parseFloat(form.value)) && parseFloat(form.value) > 0;
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="update-value">Current Value</Label>
+                <Input
+                    id="update-value"
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    required
+                />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="update-date">Date</Label>
+                <DatePicker
+                    date={updateDate}
+                    onDateChange={setUpdateDate}
+                />
+            </div>
+            <div className="grid w-full gap-3">
+                <Label htmlFor="update-note">Note (optional)</Label>
+                <Textarea
+                    id="update-note"
+                    name="note"
+                    placeholder="Update description..."
+                    value={form.note}
+                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                />
+            </div>
+            <div className="flex gap-2 mt-2">
+                <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={!isValid || loading}
+                >
+                    {loading && <Spinner />} {loading ? "Updating..." : "Update Value"}
+                </Button>
+                {onCancel && (
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
+                        Cancel
+                    </Button>
+                )}
+            </div>
+        </form>
+    );
+}

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Plus, ArrowLeft } from "lucide-react";
 import { addItemToDb } from "@/app/actions";
-import { ServiceForm, AccountForm, DebtForm, CurrencyForm } from "./ItemForms";
+import { ServiceForm, AccountForm, DebtForm, CurrencyForm, InvestmentForm } from "./ItemForms";
 import { CARD_SIZE_UNIT } from "@/lib/constants";
 import { showToast, toastMessages } from "@/lib/toast";
 
@@ -37,17 +37,30 @@ interface ServiceItem {
     notes?: string;
 }
 
-type ItemType = 'service' | 'account' | 'debt' | 'currency' | null;
-type AnyItem = ServiceItem | AccountItem | DebtItem | CurrencyItem;
+interface InvestmentItem {
+    type: 'investment';
+    name: string;
+    tag: string;
+    initialValue: number;
+    currency?: string;
+    description?: string;
+    expectedReturn?: number;
+    expectedCashOutDate?: string;
+}
+
+type ItemType = 'service' | 'account' | 'debt' | 'currency' | 'investment' | null;
+type AnyItem = ServiceItem | AccountItem | DebtItem | CurrencyItem | InvestmentItem;
 
 export default function AddItemDialog({ 
     onItemCreated, 
     availableCurrencies = [], 
-    availablePersons = [] 
+    availablePersons = [],
+    availableAccounts = []
 }: { 
     onItemCreated: (item: AnyItem) => void, 
     availableCurrencies?: string[], 
-    availablePersons?: string[] 
+    availablePersons?: string[],
+    availableAccounts?: any[]
 }) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<ItemType>(null);
@@ -106,6 +119,7 @@ export default function AddItemDialog({
                         <TypeBox label="Account" description="Track the balance of your accounts." onClick={() => setSelectedType('account')} />
                         <TypeBox label="Debt" description="Track what you owe or who owes you." onClick={() => setSelectedType('debt')} />
                         <TypeBox label="Currency" description="Keep track of all the account balances in certain currency." onClick={() => setSelectedType('currency')} />
+                        <TypeBox label="Investment" description="Track investments and their value over time." onClick={() => setSelectedType('investment')} />
                     </div>
                 ) : (
                     <div>
@@ -113,6 +127,7 @@ export default function AddItemDialog({
                         {selectedType === 'account' && <CreateAccountForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} />}
                         {selectedType === 'debt' && <CreateDebtForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} availablePersons={availablePersons} />}
                         {selectedType === 'currency' && <CreateCurrencyForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} />}
+                        {selectedType === 'investment' && <CreateInvestmentForm onClose={() => setOpen(false)} onItemCreated={onItemCreated} availableCurrencies={availableCurrencies} availableAccounts={availableAccounts} />}
                     </div>
                 )}
             </DialogContent>
@@ -234,5 +249,32 @@ function CreateCurrencyForm({ onClose, onItemCreated, availableCurrencies = [] }
     }
     return (
         <CurrencyForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} />
+    );
+}
+
+function CreateInvestmentForm({ onClose, onItemCreated, availableCurrencies = [], availableAccounts = [] }: { onClose: () => void, onItemCreated: (item: AnyItem) => void, availableCurrencies?: string[], availableAccounts?: any[] }) {
+    const [loading, setLoading] = useState(false);
+    async function handleSubmit(data: Omit<InvestmentItem, 'type'>) {
+        setLoading(true);
+        const toastId = showToast.loading(toastMessages.creating);
+        try {
+            const item: InvestmentItem = { type: 'investment' as const, ...data };
+            const created = await addItemToDb(item);
+            if (created) {
+                onItemCreated(created as AnyItem);
+                showToast.update(toastId, toastMessages.created, 'success');
+                onClose();
+            } else {
+                throw new Error('Failed to create item');
+            }
+        } catch (error) {
+            console.error('Failed to create investment:', error);
+            showToast.update(toastId, toastMessages.createError, 'error');
+        } finally {
+            setLoading(false);
+        }
+    }
+    return (
+        <InvestmentForm loading={loading} onSubmit={handleSubmit} onCancel={onClose} availableCurrencies={availableCurrencies} availableAccounts={availableAccounts} />
     );
 }

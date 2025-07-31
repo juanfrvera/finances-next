@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getServerComponentUserId } from "@/lib/actions/auth";
 import { getCurrencies, getPersons } from "@/lib/actions/entities";
-import { CurrencyEntity, PersonEntity, DbItem, Item, PaymentStatusInfo } from "@/lib/types";
+import { CurrencyEntity, PersonEntity, DbItem, Item, PaymentStatusInfo, InvestmentValueUpdate } from "@/lib/types";
 import DashboardClient from "@/components/dashboard/DashboardClient";
 import { redirect } from "next/navigation";
 import { Db } from "mongodb";
@@ -50,6 +50,37 @@ async function calculateDebtPaymentStatuses(db: Db, debtItems: DbItem[]): Promis
   return debtPaymentStatuses;
 }
 
+// Helper function to load investment value histories
+async function loadInvestmentValueHistories(db: Db, investmentItems: DbItem[]): Promise<Record<string, InvestmentValueUpdate[]>> {
+  const investmentItemIds = investmentItems.map((item) => item._id);
+  
+  const investmentHistories: Record<string, InvestmentValueUpdate[]> = {};
+
+  if (investmentItemIds.length > 0) {
+    const valueUpdates = await db.collection("investmentValueUpdates")
+      .find({ investmentId: { $in: investmentItemIds } })
+      .sort({ date: 1 }) // Sort by date ascending
+      .toArray();
+
+    // Group value updates by investment ID
+    investmentItems.forEach(investmentItem => {
+      const itemId = investmentItem._id;
+      const itemUpdates = valueUpdates.filter(u => u.investmentId === itemId);
+      
+      investmentHistories[itemId] = itemUpdates.map(update => ({
+        _id: update._id?.toString?.() ?? '',
+        investmentId: update.investmentId,
+        value: update.value || 0,
+        note: update.note || '',
+        date: update.date ? new Date(update.date).toISOString() : new Date().toISOString(),
+        userId: update.userId || '',
+      }));
+    });
+  }
+
+  return investmentHistories;
+}
+
 // Helper function to process currency items with account breakdowns
 function processCurrencyItems(items: DbItem[], accountItems: DbItem[]): DbItem[] {
   return items.map((item) => {
@@ -85,9 +116,35 @@ function attachDebtPaymentStatuses(items: DbItem[], debtPaymentStatuses: Record<
   });
 }
 
+// Helper function to attach investment value histories
+function attachInvestmentValueHistories(items: DbItem[], investmentHistories: Record<string, InvestmentValueUpdate[]>): DbItem[] {
+  return items.map((item) => {
+    if (item.type === "investment") {
+      const valueHistory = investmentHistories[item._id] || [];
+      
+      // Calculate current value and gain/loss information
+      const initialValue = item.initialValue || 0;
+      const currentValue = item.currentValue || initialValue;
+      const totalGainLoss = currentValue - initialValue;
+      const gainLossPercentage = initialValue > 0 ? (totalGainLoss / initialValue) * 100 : 0;
+      
+      return { 
+        ...item, 
+        valueHistory,
+        currentValue,
+        totalGainLoss,
+        gainLossPercentage
+      };
+    }
+    return item;
+  });
+}
+
 // Helper function to process archived items
-function processArchivedItems(archivedItems: DbItem[], debtPaymentStatuses: Record<string, PaymentStatusInfo>): DbItem[] {
-  return attachDebtPaymentStatuses(archivedItems, debtPaymentStatuses);
+function processArchivedItems(archivedItems: DbItem[], debtPaymentStatuses: Record<string, PaymentStatusInfo>, investmentHistories: Record<string, InvestmentValueUpdate[]>): DbItem[] {
+  let processedItems = attachDebtPaymentStatuses(archivedItems, debtPaymentStatuses);
+  processedItems = attachInvestmentValueHistories(processedItems, investmentHistories);
+  return processedItems;
 }
 
 export default async function Dashboard() {
@@ -135,13 +192,18 @@ export default async function Dashboard() {
   const allDebtItems = plainItems.filter((item) => item.type === "debt");
   const debtPaymentStatuses = await calculateDebtPaymentStatuses(db, allDebtItems);
 
+  // Get all investment items (both active and archived) and load value histories
+  const allInvestmentItems = plainItems.filter((item) => item.type === "investment");
+  const investmentHistories = await loadInvestmentValueHistories(db, allInvestmentItems);
+
   // Process active items
   const accountItems = activeItems.filter((item) => item.type === "account");
   let mappedItems = processCurrencyItems(activeItems, accountItems);
   mappedItems = attachDebtPaymentStatuses(mappedItems, debtPaymentStatuses);
+  mappedItems = attachInvestmentValueHistories(mappedItems, investmentHistories);
 
   // Process archived items
-  const mappedArchivedItems = processArchivedItems(archivedItems, debtPaymentStatuses);
+  const mappedArchivedItems = processArchivedItems(archivedItems, debtPaymentStatuses, investmentHistories);
 
   const hasItems = mappedItems.length > 0;
 

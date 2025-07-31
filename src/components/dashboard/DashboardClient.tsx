@@ -31,7 +31,7 @@ const CurrencyEvolutionChart = dynamic(() => import("./CurrencyEvolutionChart"),
 });
 
 // Filter options type
-type FilterOption = 'all' | 'debts' | 'services' | 'accounts' | 'currencies';
+type FilterOption = 'all' | 'debts' | 'services' | 'accounts' | 'currencies' | 'investments';
 
 interface DashboardClientProps {
     items: any[];
@@ -745,6 +745,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
         if (filterOptions.has('services') && item.type === 'service') return true;
         if (filterOptions.has('accounts') && item.type === 'account') return true;
         if (filterOptions.has('currencies') && item.type === 'currency') return true;
+        if (filterOptions.has('investments') && item.type === 'investment') return true;
         return false;
     });
 
@@ -760,6 +761,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                 onItemUnarchived={handleItemUnarchived}
                 availableCurrencies={availableCurrencies}
                 availablePersons={availablePersons}
+                availableAccounts={items.filter(item => item.type === 'account')}
             />
             <GroupedDebtDialog
                 open={groupedDebtDialogOpen}
@@ -876,10 +878,16 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                         Accounts
                     </button>
                     <button
-                        className={`px-3 py-1 rounded-r ${filterOptions.has('currencies') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors`}
+                        className={`px-3 py-1 ${filterOptions.has('currencies') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors border-r border-border/50`}
                         onClick={() => handleFilterToggle('currencies')}
                     >
                         Currencies
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded-r ${filterOptions.has('investments') ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'} text-sm transition-colors`}
+                        onClick={() => handleFilterToggle('investments')}
+                    >
+                        Investments
                     </button>
                 </div>
                 
@@ -918,6 +926,7 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                     onItemCreated={handleItemCreated} 
                     availableCurrencies={availableCurrencies}
                     availablePersons={availablePersons}
+                    availableAccounts={items.filter(item => item.type === 'account')}
                 />
                 {filteredItems.map((item, idx) => {
                     const itemId = item._id?.toString() ?? `item-${idx}`;
@@ -928,7 +937,8 @@ export default function DashboardClient({ items, archivedItems, availableCurrenc
                         item.type === "account" ||
                         item.type === "currency" ||
                         item.type === "debt" ||
-                        item.type === "service"
+                        item.type === "service" ||
+                        item.type === "investment"
                     ) {
                         return (
                             <ItemCard
@@ -1018,7 +1028,8 @@ function ItemCard(props: any) {
                 />
             )}
             {rest.type === 'service' && <Service data={rest} showJson={showJson} />}
-            {!['account', 'currency', 'debt', 'service'].includes(rest.type) && (
+            {rest.type === 'investment' && <Investment data={rest} showJson={showJson} onClick={onClick} />}
+            {!['account', 'currency', 'debt', 'service', 'investment'].includes(rest.type) && (
                 <div className="flex items-center justify-center p-4 w-full h-full">
                     {showJson && <pre>{JSON.stringify(rest, null, 2)}</pre>}
                 </div>
@@ -1434,6 +1445,72 @@ function Debt({ data, showJson, canGroupDebts, toggleDebtGrouping, groupedDebts,
             </div>
 
             {showJson && <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">{JSON.stringify(data, null, 2)}</pre>}
+        </div>
+    );
+}
+
+function Investment({ data, showJson, onClick }: any) {
+    // Calculate gain/loss information
+    const currentValue = data.currentValue || data.initialValue;
+    const gainLoss = currentValue - data.initialValue;
+    const gainLossPercentage = ((gainLoss / data.initialValue) * 100);
+    
+    const isGain = gainLoss >= 0;
+    const statusColor = isGain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    
+    // Check if investment is finished
+    const isFinished = data.isFinished;
+    
+    return (
+        <div
+            className="flex flex-col items-center justify-center text-center p-4 h-full cursor-pointer"
+            onClick={onClick}
+        >
+            <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-lg font-semibold">{data.name}</h2>
+                {isFinished && (
+                    <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                        Finished
+                    </span>
+                )}
+            </div>
+            
+            <div className="text-sm text-muted-foreground mb-1">{data.tag}</div>
+            
+            <div className="mb-2">
+                <div className="text-xl font-bold flex items-baseline gap-1 justify-center">
+                    {formatMoney(currentValue)}
+                    {data.currency && <span className="text-base font-normal ml-1">{data.currency}</span>}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    Initial: {formatMoney(data.initialValue)}
+                    {data.currency && <span className="ml-1">{data.currency}</span>}
+                </div>
+            </div>
+            
+            <div className={`text-sm font-medium ${statusColor}`}>
+                {isGain ? '+' : ''}{formatMoney(Math.abs(gainLoss))}
+                {data.currency && <span className="ml-1">{data.currency}</span>}
+                <span className="ml-1">({isGain ? '+' : '-'}{Math.abs(gainLossPercentage).toFixed(1)}%)</span>
+            </div>
+            
+            {data.expectedReturn && (
+                <div className="text-xs text-muted-foreground mt-1">
+                    Target: {data.expectedReturn}%
+                </div>
+            )}
+            
+            {data.expectedCashOutDate && (
+                <div className="text-xs text-muted-foreground mt-1">
+                    Expected: {new Date(data.expectedCashOutDate).toLocaleDateString()}
+                </div>
+            )}
+            
+            {showJson && (
+                <pre className="text-xs max-h-24 overflow-auto w-full break-words whitespace-pre-wrap bg-muted rounded p-1 mt-2">
+                    {JSON.stringify(data, null, 2)}
+                </pre>
+            )}
         </div>
     );
 }

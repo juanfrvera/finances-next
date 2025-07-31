@@ -39,7 +39,12 @@ export async function addItemToDb(item: NewItemData): Promise<Item | null> {
             }
             
             // Create item data for insertion
-            const itemData = item;
+            const itemData = { ...item };
+            
+            // For investment items, set currentValue to initialValue if not already set
+            if (item.type === 'investment' && item.initialValue && !item.currentValue) {
+                itemData.currentValue = item.initialValue;
+            }
             
             // Insert the item
             const insertResult = await transactionDb.collection("items").insertOne({
