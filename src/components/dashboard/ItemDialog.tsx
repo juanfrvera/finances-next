@@ -1,6 +1,6 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ServiceForm, CurrencyForm, InvestmentForm } from "./ItemForms";
+import { ServiceForm, CurrencyForm } from "./ItemForms";
 import AccountDialog from "./AccountDialog";
 import DebtDialog from "./DebtDialog";
 import InvestmentDialog from "./InvestmentDialog";

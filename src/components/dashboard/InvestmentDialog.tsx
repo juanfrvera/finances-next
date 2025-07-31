@@ -1,11 +1,11 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { InvestmentForm, InvestmentValueUpdateForm } from "./ItemForms";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { updateItemToDb, deleteItemFromDb, archiveItem, unarchiveItem } from "@/app/actions";
 import { addInvestmentValueUpdate, getInvestmentValueHistory, deleteInvestmentValueUpdate, finishInvestment, unfinishInvestment } from "@/lib/actions/investments";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, X, Trash2, Archive, Plus, TrendingUp, CheckCircle, Circle } from "lucide-react";
+import { MoreVertical, X, Trash2, Archive, Plus, TrendingUp, CheckCircle, Circle, Loader2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -46,16 +46,9 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
     const [valueHistory, setValueHistory] = useState<InvestmentValueUpdate[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    // Load value history when dialog opens
-    useEffect(() => {
-        if (open && item?._id) {
-            loadValueHistory();
-        }
-    }, [open, item?._id]);
-
-    async function loadValueHistory() {
+    const loadValueHistory = useCallback(async () => {
         if (!item?._id) return;
-        
+
         setLoadingHistory(true);
         try {
             const history = await getInvestmentValueHistory(item._id);
@@ -65,7 +58,14 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
         } finally {
             setLoadingHistory(false);
         }
-    }
+    }, [item?._id]);
+
+    // Load value history when dialog opens
+    useEffect(() => {
+        if (open && item?._id) {
+            loadValueHistory();
+        }
+    }, [open, item?._id, loadValueHistory]);
 
     async function handleSave(data: any) {
         if (!item) return;
@@ -148,7 +148,7 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
             showToast.update(toastId, 'Value update added successfully!', 'success');
             setShowValueUpdateForm(false);
             loadValueHistory(); // Reload history
-            
+
             // Update the item with new current value
             const updatedItem = { ...item, currentValue: data.value };
             onItemUpdated(updatedItem);
@@ -181,7 +181,7 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
             } else {
                 await unfinishInvestment(item._id);
             }
-            
+
             const updatedItem = { ...item, isFinished: isFinishing };
             onItemUpdated(updatedItem);
             showToast.update(toastId, isFinishing ? 'Investment marked as finished!' : 'Investment unmarked as finished!', 'success');
@@ -229,17 +229,35 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
                                     </>
                                 )}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleArchive}>
-                                <Archive className="mr-2 h-4 w-4" />
-                                {item.archived ? 'Unarchive' : 'Archive'}
+                            <DropdownMenuItem onClick={handleArchive} disabled={archiving || unarchiving}>
+                                {archiving || unarchiving ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        {archiving ? 'Archiving...' : 'Unarchiving...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        {item.archived ? 'Unarchive' : 'Archive'}
+                                    </>
+                                )}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
+                            <DropdownMenuItem onClick={handleDelete} className="text-red-600" disabled={deleting || archiving || unarchiving}>
+                                {deleting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </>
+                                )}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    
+
                     {/* Close button */}
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => onOpenChange(false)}>
                         <X className="h-4 w-4" />
@@ -322,7 +340,7 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
                                             {item.currency && <span className="ml-1">{item.currency}</span>}
                                         </div>
                                         <div className="text-sm text-muted-foreground">
-                                            {new Date(update.date).toLocaleDateString()} 
+                                            {new Date(update.date).toLocaleDateString()}
                                             {update.note && ` • ${update.note}`}
                                         </div>
                                     </div>
@@ -339,7 +357,7 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
                         </div>
                     ) : (
                         <div className="text-center py-4 text-muted-foreground">
-                            No value updates yet. Add the first update to track your investment's progress.
+                            No value updates yet. Add the first update to track your investment&apos;s progress.
                         </div>
                     )}
                 </div>
@@ -358,14 +376,14 @@ export default function InvestmentDialog({ open, onOpenChange, item, onItemUpdat
                 {/* Edit Investment Form */}
                 <div className="border-t pt-4">
                     <h3 className="text-lg font-semibold mb-3">Edit Investment</h3>
-                    <InvestmentForm 
-                        initial={item} 
-                        loading={loading} 
-                        deleting={deleting} 
-                        onSubmit={handleSave} 
-                        onCancel={handleCancel} 
-                        submitLabel={loading ? "Saving..." : "Save"} 
-                        availableCurrencies={availableCurrencies} 
+                    <InvestmentForm
+                        initial={item}
+                        loading={loading}
+                        deleting={deleting}
+                        onSubmit={handleSave}
+                        onCancel={handleCancel}
+                        submitLabel={loading ? "Saving..." : "Save"}
+                        availableCurrencies={availableCurrencies}
                         availableAccounts={availableAccounts}
                     />
                 </div>
