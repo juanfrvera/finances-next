@@ -52,7 +52,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # Remove dev dependencies while keeping production ones
 RUN npm prune --production
 
-# Production image, copy all the files and run next
+# Production image, copy all the files and run lambda handler
 FROM base AS runner
 WORKDIR /app
 
@@ -72,13 +72,15 @@ COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy Lambda handler
+COPY --from=builder /app/deploy/lambda-handler-optimized.js ./
+
 USER nextjs
 
-EXPOSE 3000
+# Lambda Runtime Interface Emulator for local testing
+# In Lambda, this is provided by the runtime
+ENV LAMBDA_TASK_ROOT /app
+ENV LAMBDA_RUNTIME_DIR /app
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Use Lambda handler instead of server.js
+CMD ["lambda-handler-optimized.handler"]
