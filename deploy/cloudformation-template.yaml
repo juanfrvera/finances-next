@@ -146,12 +146,6 @@ Resources:
                   body: '<h1>Lambda deployment successful!</h1>'
                 };
               };
-      ImageConfig:
-        !If
-          - HasContainerImage
-          - Command: 
-              - "lambda-handler-optimized.handler"
-          - !Ref AWS::NoValue
 
   # API Gateway V2 (HTTP API - better for Lambda integration)
   HttpApi:
