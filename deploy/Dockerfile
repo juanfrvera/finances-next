@@ -73,7 +73,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Lambda handler
-COPY --from=builder /app/deploy/lambda-handler-optimized.js ./
+COPY --from=builder /app/deploy/lambda-handler-optimized.js ./lambda-handler-optimized.js
 
 USER nextjs
 
@@ -82,5 +82,5 @@ USER nextjs
 ENV LAMBDA_TASK_ROOT /app
 ENV LAMBDA_RUNTIME_DIR /app
 
-# Use Lambda handler instead of server.js
+# Use Lambda handler - note the correct format for Lambda containers
 CMD ["lambda-handler-optimized.handler"]
