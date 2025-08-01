@@ -40,8 +40,52 @@ jobs:
 
     - name: Create ECR repository if it doesn't exist
       run: |
+        # Get AWS Account ID
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "AWS Account ID: $AWS_ACCOUNT_ID"
+        
         aws ecr describe-repositories --repository-names $ECR_REPOSITORY || \
         aws ecr create-repository --repository-name $ECR_REPOSITORY --region $AWS_REGION
+        
+        # Set ECR repository policy to allow Lambda service access
+        echo "🔑 Setting ECR repository policy for Lambda access..."
+        
+        # Create ECR policy JSON file
+        echo '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "LambdaECRImageRetrievalPolicy", 
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability"
+              ]
+            },
+            {
+              "Sid": "CrossAccountPermission",
+              "Effect": "Allow", 
+              "Principal": {
+                "AWS": "arn:aws:iam::'${AWS_ACCOUNT_ID}':root"
+              },
+              "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage", 
+                "ecr:BatchCheckLayerAvailability"
+              ]
+            }
+          ]
+        }' > ecr-policy.json
+        
+        aws ecr set-repository-policy \
+          --repository-name $ECR_REPOSITORY \
+          --policy-text file://ecr-policy.json || echo "⚠️ ECR policy already exists or failed to set"
+        
+        rm -f ecr-policy.json
 
     - name: Build, tag, and push Docker image
       env:
@@ -207,6 +251,15 @@ jobs:
         set +e  # Don't exit on error so we can capture details
         
         echo "🚀 Starting CloudFormation deployment..."
+        echo "📋 Deployment Parameters:"
+        echo "   Stack Name: $STACK_NAME"
+        echo "   Region: ${{ env.AWS_REGION }}"
+        echo "   Container Image: $IMAGE_URI"
+        echo "   Template: $TEMPLATE_FILE"
+        echo ""
+        
+        # Start deployment in background to monitor progress
+        echo "🔄 Initiating CloudFormation stack deployment..."
         aws cloudformation deploy \
           --template-file "$TEMPLATE_FILE" \
           --stack-name "$STACK_NAME" \
@@ -217,7 +270,108 @@ jobs:
             Environment="prod" \
           --capabilities CAPABILITY_IAM \
           --region ${{ env.AWS_REGION }} \
-          --no-fail-on-empty-changeset
+          --no-fail-on-empty-changeset &
+        
+        DEPLOY_PID=$!
+        
+        # Monitor deployment progress
+        echo "⏳ Monitoring deployment progress..."
+        PROGRESS_COUNT=0
+        LAST_EVENT_TIME=""
+        START_TIME=$(date +%s)
+        
+        # Define expected deployment stages for progress calculation
+        declare -A STAGE_PROGRESS=(
+          ["CREATE_IN_PROGRESS"]=10
+          ["UPDATE_IN_PROGRESS"]=10
+          ["CREATE_COMPLETE"]=100
+          ["UPDATE_COMPLETE"]=100
+          ["ROLLBACK_IN_PROGRESS"]=50
+          ["ROLLBACK_COMPLETE"]=0
+        )
+        
+        while kill -0 $DEPLOY_PID 2>/dev/null; do
+          # Get latest stack events
+          CURRENT_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || echo "UNKNOWN")
+          
+          # Calculate elapsed time
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - START_TIME))
+          ELAPSED_MIN=$((ELAPSED / 60))
+          ELAPSED_SEC=$((ELAPSED % 60))
+          
+          # Get progress percentage
+          PROGRESS=${STAGE_PROGRESS[$CURRENT_STATUS]:-20}
+          
+          # Count completed resources for more granular progress
+          COMPLETED_RESOURCES=$(aws cloudformation describe-stack-events \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'length(StackEvents[?ends_with(ResourceStatus, `_COMPLETE`)])' \
+            --output text 2>/dev/null || echo "0")
+          
+          TOTAL_RESOURCES=$(aws cloudformation describe-stack-events \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'length(StackEvents[?ResourceType != `AWS::CloudFormation::Stack`])' \
+            --output text 2>/dev/null || echo "1")
+          
+          # Calculate resource-based progress if available
+          if [ "$TOTAL_RESOURCES" -gt 0 ] && [ "$COMPLETED_RESOURCES" -gt 0 ]; then
+            RESOURCE_PROGRESS=$((COMPLETED_RESOURCES * 80 / TOTAL_RESOURCES))
+            PROGRESS=$((PROGRESS + RESOURCE_PROGRESS))
+            if [ "$PROGRESS" -gt 100 ]; then
+              PROGRESS=100
+            fi
+          fi
+          
+          # Create progress bar
+          PROGRESS_BARS=$((PROGRESS / 5))
+          PROGRESS_BAR=$(printf "%*s" $PROGRESS_BARS "" | tr ' ' '█')
+          PROGRESS_EMPTY=$(printf "%*s" $((20 - PROGRESS_BARS)) "" | tr ' ' '░')
+          
+          # Show progress indicator
+          printf "\r🔄 [%s%s] %3d%% | Status: %-20s | Time: %02d:%02d" \
+            "$PROGRESS_BAR" "$PROGRESS_EMPTY" "$PROGRESS" "$CURRENT_STATUS" "$ELAPSED_MIN" "$ELAPSED_SEC"
+          
+          # Get recent events
+          RECENT_EVENTS=$(aws cloudformation describe-stack-events \
+            --stack-name "$STACK_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackEvents[:3].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Type:ResourceType}' \
+            --output text 2>/dev/null || echo "")
+          
+          # Show new events if any
+          if [ -n "$RECENT_EVENTS" ] && [ "$RECENT_EVENTS" != "$LAST_EVENT_TIME" ]; then
+            echo ""
+            echo "📝 Recent activity:"
+            echo "$RECENT_EVENTS" | while IFS=$'\t' read -r time resource status type; do
+              if [ -n "$resource" ] && [ "$resource" != "None" ]; then
+                # Add status emoji
+                case "$status" in
+                  *_COMPLETE) emoji="✅" ;;
+                  *_IN_PROGRESS) emoji="🔄" ;;
+                  *_FAILED) emoji="❌" ;;
+                  *) emoji="📋" ;;
+                esac
+                echo "   $emoji $resource ($type): $status"
+              fi
+            done
+            echo -n "🔄 Continuing deployment..."
+            LAST_EVENT_TIME="$RECENT_EVENTS"
+          fi
+          
+          sleep 3
+        done
+        
+        echo ""  # New line after progress bar
+        
+        # Wait for background process and get exit code
+        wait $DEPLOY_PID
         
         DEPLOY_EXIT_CODE=$?
         

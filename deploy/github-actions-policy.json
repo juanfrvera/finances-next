@@ -37,7 +37,10 @@
                 "ecr:InitiateLayerUpload",
                 "ecr:UploadLayerPart",
                 "ecr:CompleteLayerUpload",
-                "ecr:PutImage"
+                "ecr:PutImage",
+                "ecr:SetRepositoryPolicy",
+                "ecr:GetRepositoryPolicy",
+                "ecr:DeleteRepositoryPolicy"
             ],
             "Resource": "*"
         },
@@ -165,6 +168,13 @@
             "Resource": [
                 "arn:aws:logs:*:*:log-group:/aws/lambda/finances-next-*"
             ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
         }
     ]
 }
