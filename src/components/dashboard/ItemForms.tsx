@@ -740,16 +740,34 @@ export function DebtPaymentForm({ debtAmount, currency, loading, onSubmit, onCan
 }
 
 export function InvestmentForm({ initial, loading, deleting, onSubmit, onCancel, submitLabel = "Create Investment", showDelete, onDelete, availableCurrencies = [], availableAccounts = [] }: {
-    initial?: any;
+    initial?: {
+        name?: string;
+        tag?: string;
+        initialValue?: number;
+        currency?: string;
+        description?: string;
+        expectedReturn?: number;
+        expectedCashOutDate?: string;
+        accountId?: string;
+    };
     loading?: boolean;
     deleting?: boolean;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: {
+        name: string;
+        tag?: string;
+        initialValue: number;
+        currency?: string;
+        description?: string;
+        expectedReturn?: number;
+        expectedCashOutDate?: string;
+        accountId?: string;
+    }) => void;
     onCancel?: () => void;
     submitLabel?: string;
     showDelete?: boolean;
     onDelete?: () => void;
-    availableCurrencies?: any[];
-    availableAccounts?: any[];
+    availableCurrencies?: Array<{ name?: string; currency?: string } | string>;
+    availableAccounts?: Array<{ name?: string; balance?: number; currency?: string }>;
 }) {
     const [form, setForm] = useState({
         name: initial?.name || "",
@@ -1009,9 +1027,17 @@ export function InvestmentForm({ initial, loading, deleting, onSubmit, onCancel,
 }
 
 export function InvestmentValueUpdateForm({ initial, loading, onSubmit, onCancel }: {
-    initial?: any;
+    initial?: {
+        value?: number;
+        note?: string;
+        date?: string;
+    };
     loading?: boolean;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: {
+        value: number;
+        note?: string;
+        date: string;
+    }) => void;
     onCancel?: () => void;
 }) {
     const [form, setForm] = useState({

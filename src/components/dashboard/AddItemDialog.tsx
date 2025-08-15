@@ -40,12 +40,13 @@ interface ServiceItem {
 interface InvestmentItem {
     type: 'investment';
     name: string;
-    tag: string;
+    tag?: string;
     initialValue: number;
     currency?: string;
     description?: string;
     expectedReturn?: number;
     expectedCashOutDate?: string;
+    accountId?: string;
 }
 
 type ItemType = 'service' | 'account' | 'debt' | 'currency' | 'investment' | null;

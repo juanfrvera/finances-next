@@ -1,9 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Basic health check
-    const healthData: any = {
+    const healthData: {
+      status: string;
+      timestamp: string;
+      environment: string;
+      version: string;
+      database?: string;
+      databaseError?: string;
+    } = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
