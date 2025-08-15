@@ -78,7 +78,7 @@ Resources:
   AppRunnerAutoScalingConfig:
     Type: AWS::AppRunner::AutoScalingConfiguration
     Properties:
-      AutoScalingConfigurationName: !Sub ${AWS::StackName}-autoscaling
+      AutoScalingConfigurationName: !Sub ${AWS::StackName}-as
       MinSize: 0
       MaxSize: !Ref MaxInstances
       MaxConcurrency: 100
