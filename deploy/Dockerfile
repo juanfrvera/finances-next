@@ -1,7 +1,4 @@
 # Use the official Node.js 22 image as base
-FROM public.ecr.aws/lambda/nodejs:22 AS lambda-base
-
-# Use the official Node.js 22 image for building  
 FROM node:22-alpine AS base
 
 # Install dependencies only when needed
@@ -55,12 +52,15 @@ COPY --from=deps /app/node_modules ./node_modules
 # Remove dev dependencies while keeping production ones
 RUN npm prune --production
 
-# Production image, copy all the files and run lambda handler
-FROM lambda-base AS runner
-WORKDIR ${LAMBDA_TASK_ROOT}
+# Production image, copy all the files and run Next.js server
+FROM base AS runner
+WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
@@ -69,11 +69,15 @@ COPY --from=production-deps /app/node_modules ./node_modules
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Lambda handler
-COPY --from=builder /app/deploy/lambda-handler-optimized.js ./lambda-handler-optimized.js
+USER nextjs
 
-# Set the CMD to your handler (not ENTRYPOINT)
-CMD ["lambda-handler-optimized.handler"]
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# Start the Next.js server
+CMD ["node", "server.js"]

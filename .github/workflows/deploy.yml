@@ -1,4 +1,4 @@
-name: Deploy to AWS Lambda
+name: Deploy to AWS
 
 on:
   # Deploy on push to main branch
@@ -46,441 +46,89 @@ jobs:
         
         aws ecr describe-repositories --repository-names $ECR_REPOSITORY || \
         aws ecr create-repository --repository-name $ECR_REPOSITORY --region $AWS_REGION
-        
-        # Set ECR repository policy to allow Lambda service access
-        echo "🔑 Setting ECR repository policy for Lambda access..."
-        
-        # Create ECR policy JSON file
-        echo '{
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Sid": "LambdaECRImageRetrievalPolicy", 
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com"
-              },
-              "Action": [
-                "ecr:GetDownloadUrlForLayer",
-                "ecr:BatchGetImage",
-                "ecr:BatchCheckLayerAvailability"
-              ]
-            },
-            {
-              "Sid": "CrossAccountPermission",
-              "Effect": "Allow", 
-              "Principal": {
-                "AWS": "arn:aws:iam::'${AWS_ACCOUNT_ID}':root"
-              },
-              "Action": [
-                "ecr:GetDownloadUrlForLayer",
-                "ecr:BatchGetImage", 
-                "ecr:BatchCheckLayerAvailability"
-              ]
-            }
-          ]
-        }' > ecr-policy.json
-        
-        aws ecr set-repository-policy \
-          --repository-name $ECR_REPOSITORY \
-          --policy-text file://ecr-policy.json || echo "⚠️ ECR policy already exists or failed to set"
-        
-        rm -f ecr-policy.json
 
-    - name: Build, tag, and push Docker image
+    - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
       run: |
-        # Build Docker image using Dockerfile in deploy folder
-        docker build -f deploy/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        echo "🔨 Building Docker image..."
+        docker build \
+          -f deploy/Dockerfile \
+          -t $IMAGE_URI \
+          --build-arg DB_URL="${{ secrets.DB_URL }}" \
+          --build-arg DB_NAME="${{ secrets.DB_NAME }}" \
+          .
         
-        # Push image to ECR
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "📤 Pushing image to ECR..."
+        docker push $IMAGE_URI
         
-        # Output image URI for later steps
-        echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+        echo "✅ Image pushed successfully!"
+        echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-    - name: Deploy CloudFormation stack
+    - name: Deploy App Runner Service
       run: |
-        STACK_NAME="finances-next-prod"
-        TEMPLATE_FILE="deploy/cloudformation-template.yaml"
+        echo "🚀 Starting App Runner deployment..."
         
-        echo "Deploying stack: $STACK_NAME"
-        echo "Template: $TEMPLATE_FILE"
-        echo "Container Image: $IMAGE_URI"
+        STACK_NAME="finances-next-apprunner-prod"
+        TEMPLATE_FILE="deploy/apprunner-template.yaml"
         
-        # Check if stack exists and its status
-        echo "🔍 Checking existing stack status..."
-        STACK_STATUS=$(aws cloudformation describe-stacks \
-          --stack-name "$STACK_NAME" \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].StackStatus' \
-          --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-        
-        echo "Current stack status: $STACK_STATUS"
-        
-        # Delete stack if it's in ROLLBACK_COMPLETE state
-        if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
-          echo "⚠️ Stack is in ROLLBACK_COMPLETE state, deleting it first..."
-          aws cloudformation delete-stack \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "⏳ Waiting for stack deletion to complete..."
-          aws cloudformation wait stack-delete-complete \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ Stack deleted successfully"
-          STACK_STATUS="DOES_NOT_EXIST"
-        fi
-        
-        # Handle DELETE_FAILED state (same as ROLLBACK_FAILED)
-        if [ "$STACK_STATUS" = "DELETE_FAILED" ] || [ "$STACK_STATUS" = "ROLLBACK_FAILED" ]; then
-          echo "⚠️ Stack is in $STACK_STATUS state, attempting deletion..."
-          echo "💡 This requires manual cleanup of stuck resources"
-          
-          echo "⚠️ Stack deletion failed - likely due to missing IAM permissions or stuck resources"
-          echo ""
-          echo "📋 ACTION REQUIRED:"
-          echo "1. Check deploy/DEPLOYMENT_GUIDE.md for required IAM permissions"
-          echo "2. Manually clean up stuck resources using AWS console or CLI"
-          echo "3. Then retry this deployment"
-          echo ""
-          exit 1
-          
-          # Try stack deletion first
-          echo "🗑️ Attempting CloudFormation stack deletion..."
-          aws cloudformation delete-stack \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "⏳ Waiting for stack deletion to complete..."
-          set +e  # Don't exit on error
-          aws cloudformation wait stack-delete-complete \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          DELETE_EXIT_CODE=$?
-          set -e  # Re-enable exit on error
-          
-          if [ $DELETE_EXIT_CODE -ne 0 ]; then
-            echo "❌ Stack deletion failed, checking what resources are stuck..."
-            
-            # Get deletion failure details
-            echo "🔍 Fetching stack deletion events..."
-            aws cloudformation describe-stack-events \
-              --stack-name "$STACK_NAME" \
-              --region ${{ env.AWS_REGION }} \
-              --query 'StackEvents[?ResourceStatus==`DELETE_FAILED`].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}' \
-              --output table || echo "Could not fetch delete failed events"
-            
-            echo ""
-            echo "�️ Attempting to manually clean up common stuck resources..."
-            
-            # Clean up IAM role that often gets stuck
-            echo "Cleaning up IAM execution role..."
-            ROLE_NAME=$(aws iam list-roles --query "Roles[?starts_with(RoleName, '$STACK_NAME-LambdaExecutionRole')].RoleName" --output text 2>/dev/null || echo "")
-            if [ -n "$ROLE_NAME" ] && [ "$ROLE_NAME" != "None" ]; then
-              echo "Found stuck IAM role: $ROLE_NAME"
-              
-              # Detach managed policies
-              aws iam list-attached-role-policies --role-name "$ROLE_NAME" --query 'AttachedPolicies[].PolicyArn' --output text 2>/dev/null | while read -r policy; do
-                if [ -n "$policy" ] && [ "$policy" != "None" ]; then
-                  echo "Detaching managed policy: $policy"
-                  aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$policy" 2>/dev/null || true
-                fi
-              done
-              
-              # Delete inline policies
-              aws iam list-role-policies --role-name "$ROLE_NAME" --query 'PolicyNames[]' --output text 2>/dev/null | while read -r policy; do
-                if [ -n "$policy" ] && [ "$policy" != "None" ]; then
-                  echo "Deleting inline policy: $policy"
-                  aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$policy" 2>/dev/null || true
-                fi
-              done
-              
-              # Delete the role
-              echo "Deleting IAM role: $ROLE_NAME"
-              aws iam delete-role --role-name "$ROLE_NAME" 2>/dev/null || true
-            fi
-            
-            # Clean up S3 bucket policy that often gets stuck
-            echo "Cleaning up S3 bucket policy..."
-            BUCKET_NAME=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '$STACK_NAME-static')].Name" --output text 2>/dev/null || echo "")
-            if [ -n "$BUCKET_NAME" ] && [ "$BUCKET_NAME" != "None" ]; then
-              echo "Found stuck S3 bucket: $BUCKET_NAME"
-              echo "Removing bucket policy..."
-              aws s3api delete-bucket-policy --bucket "$BUCKET_NAME" 2>/dev/null || true
-            fi
-            
-            # Wait a moment for changes to propagate
-            echo "⏳ Waiting 10 seconds for AWS changes to propagate..."
-            sleep 10
-            
-            # Retry stack deletion after manual cleanup
-            echo "🔄 Retrying stack deletion after manual cleanup..."
-            aws cloudformation delete-stack \
-              --stack-name "$STACK_NAME" \
-              --region ${{ env.AWS_REGION }}
-            
-            echo "⏳ Waiting for retry deletion to complete..."
-            aws cloudformation wait stack-delete-complete \
-              --stack-name "$STACK_NAME" \
-              --region ${{ env.AWS_REGION }}
-            
-            RETRY_EXIT_CODE=$?
-            if [ $RETRY_EXIT_CODE -eq 0 ]; then
-              echo "✅ Stack deleted successfully after manual cleanup"
-              STACK_STATUS="DOES_NOT_EXIST"
-            else
-              echo "❌ Stack deletion still failed after manual cleanup"
-              echo "� You may need to manually delete remaining resources in AWS console:"
-              echo "   1. Go to CloudFormation console and check failed resources"
-              echo "   2. Manually delete stuck IAM roles, S3 bucket policies, or other resources"
-              echo "   3. Then retry this deployment"
-              exit 1
-            fi
-          else
-            echo "✅ Stack deleted successfully"
-            STACK_STATUS="DOES_NOT_EXIST"
-          fi
-        fi
-        
-        # Deploy with verbose output and error handling
-        set +e  # Don't exit on error so we can capture details
-        
-        echo "🚀 Starting CloudFormation deployment..."
-        echo "📋 Deployment Parameters:"
-        echo "   Stack Name: $STACK_NAME"
-        echo "   Region: ${{ env.AWS_REGION }}"
-        echo "   Container Image: $IMAGE_URI"
-        echo "   Template: $TEMPLATE_FILE"
-        echo ""
-        
-        # Start deployment in background to monitor progress
-        echo "🔄 Initiating CloudFormation stack deployment..."
+        echo "🔄 Deploying App Runner service..."
         aws cloudformation deploy \
-          --template-file "$TEMPLATE_FILE" \
-          --stack-name "$STACK_NAME" \
+          --template-file $TEMPLATE_FILE \
+          --stack-name $STACK_NAME \
           --parameter-overrides \
-            ContainerImageUri="$IMAGE_URI" \
+            ContainerImageUri="${{ env.IMAGE_URI }}" \
             DBUrl="${{ secrets.DB_URL }}" \
             DBName="${{ secrets.DB_NAME }}" \
-            Environment="prod" \
+            Environment=prod \
+            MaxInstances=1 \
           --capabilities CAPABILITY_IAM \
-          --region ${{ env.AWS_REGION }} \
-          --no-fail-on-empty-changeset &
-        
-        DEPLOY_PID=$!
-        
-        # Monitor deployment progress
-        echo "⏳ Monitoring deployment progress..."
-        PROGRESS_COUNT=0
-        LAST_EVENT_TIME=""
-        START_TIME=$(date +%s)
-        
-        # Define expected deployment stages for progress calculation
-        declare -A STAGE_PROGRESS=(
-          ["CREATE_IN_PROGRESS"]=10
-          ["UPDATE_IN_PROGRESS"]=10
-          ["CREATE_COMPLETE"]=100
-          ["UPDATE_COMPLETE"]=100
-          ["ROLLBACK_IN_PROGRESS"]=50
-          ["ROLLBACK_COMPLETE"]=0
-        )
-        
-        while kill -0 $DEPLOY_PID 2>/dev/null; do
-          # Get latest stack events
-          CURRENT_STATUS=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'Stacks[0].StackStatus' \
-            --output text 2>/dev/null || echo "UNKNOWN")
-          
-          # Calculate elapsed time
-          CURRENT_TIME=$(date +%s)
-          ELAPSED=$((CURRENT_TIME - START_TIME))
-          ELAPSED_MIN=$((ELAPSED / 60))
-          ELAPSED_SEC=$((ELAPSED % 60))
-          
-          # Get progress percentage
-          PROGRESS=${STAGE_PROGRESS[$CURRENT_STATUS]:-20}
-          
-          # Count completed resources for more granular progress
-          COMPLETED_RESOURCES=$(aws cloudformation describe-stack-events \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'length(StackEvents[?ends_with(ResourceStatus, `_COMPLETE`)])' \
-            --output text 2>/dev/null || echo "0")
-          
-          TOTAL_RESOURCES=$(aws cloudformation describe-stack-events \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'length(StackEvents[?ResourceType != `AWS::CloudFormation::Stack`])' \
-            --output text 2>/dev/null || echo "1")
-          
-          # Calculate resource-based progress if available
-          if [ "$TOTAL_RESOURCES" -gt 0 ] && [ "$COMPLETED_RESOURCES" -gt 0 ]; then
-            RESOURCE_PROGRESS=$((COMPLETED_RESOURCES * 80 / TOTAL_RESOURCES))
-            PROGRESS=$((PROGRESS + RESOURCE_PROGRESS))
-            if [ "$PROGRESS" -gt 100 ]; then
-              PROGRESS=100
-            fi
-          fi
-          
-          # Create progress bar
-          PROGRESS_BARS=$((PROGRESS / 5))
-          PROGRESS_BAR=$(printf "%*s" $PROGRESS_BARS "" | tr ' ' '█')
-          PROGRESS_EMPTY=$(printf "%*s" $((20 - PROGRESS_BARS)) "" | tr ' ' '░')
-          
-          # Show progress indicator
-          printf "\r🔄 [%s%s] %3d%% | Status: %-20s | Time: %02d:%02d" \
-            "$PROGRESS_BAR" "$PROGRESS_EMPTY" "$PROGRESS" "$CURRENT_STATUS" "$ELAPSED_MIN" "$ELAPSED_SEC"
-          
-          # Get recent events
-          RECENT_EVENTS=$(aws cloudformation describe-stack-events \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'StackEvents[:3].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Type:ResourceType}' \
-            --output text 2>/dev/null || echo "")
-          
-          # Show new events if any
-          if [ -n "$RECENT_EVENTS" ] && [ "$RECENT_EVENTS" != "$LAST_EVENT_TIME" ]; then
-            echo ""
-            echo "📝 Recent activity:"
-            echo "$RECENT_EVENTS" | while IFS=$'\t' read -r time resource status type; do
-              if [ -n "$resource" ] && [ "$resource" != "None" ]; then
-                # Add status emoji
-                case "$status" in
-                  *_COMPLETE) emoji="✅" ;;
-                  *_IN_PROGRESS) emoji="🔄" ;;
-                  *_FAILED) emoji="❌" ;;
-                  *) emoji="📋" ;;
-                esac
-                echo "   $emoji $resource ($type): $status"
-              fi
-            done
-            echo -n "🔄 Continuing deployment..."
-            LAST_EVENT_TIME="$RECENT_EVENTS"
-          fi
-          
-          sleep 3
-        done
-        
-        echo ""  # New line after progress bar
-        
-        # Wait for background process and get exit code
-        wait $DEPLOY_PID
-        
-        DEPLOY_EXIT_CODE=$?
-        
-        if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-          echo "❌ CloudFormation deployment failed with exit code: $DEPLOY_EXIT_CODE"
-          echo ""
-          echo "🔍 Fetching stack events for detailed error information..."
-          echo ""
-          
-          # Get all stack events to show what went wrong
-          aws cloudformation describe-stack-events \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED` || ResourceStatus==`DELETE_FAILED`].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}' \
-            --output table || echo "Could not fetch failed stack events"
-          
-          echo ""
-          echo "📋 Recent stack events (last 10):"
-          aws cloudformation describe-stack-events \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'StackEvents[:10].{Time:Timestamp,Resource:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}' \
-            --output table || echo "Could not fetch recent stack events"
-          
-          echo ""
-          echo "💡 To debug further, check the CloudFormation console or run:"
-          echo "   aws cloudformation describe-stack-events --stack-name $STACK_NAME"
-          
-          # Check final stack status for guidance
-          FINAL_STATUS=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'Stacks[0].StackStatus' \
-            --output text 2>/dev/null || echo "UNKNOWN")
-          
-          echo ""
-          echo "📊 Final stack status: $FINAL_STATUS"
-          
-          if [ "$FINAL_STATUS" = "ROLLBACK_COMPLETE" ] || [ "$FINAL_STATUS" = "ROLLBACK_FAILED" ]; then
-            echo "💡 Stack is in rollback state. Next run will automatically clean up and retry."
-          fi
-          
-          exit $DEPLOY_EXIT_CODE
-        fi
-        
-        echo "✅ CloudFormation deployment completed successfully"
+          --region ${{ env.AWS_REGION }}
 
-    - name: Get deployment information
-      id: deployment
+    - name: Get App Runner Service URL
       run: |
-        STACK_NAME="finances-next-prod"
+        STACK_NAME="finances-next-apprunner-prod"
         
-        # Get API Gateway URL
-        API_URL=$(aws cloudformation describe-stacks \
-          --stack-name "$STACK_NAME" \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+        # Get the service URL from CloudFormation outputs
+        SERVICE_URL=$(aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query 'Stacks[0].Outputs[?OutputKey==`AppRunnerServiceUrl`].OutputValue' \
           --output text)
         
-        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-        
-        # Get CloudFront URL if available
-        CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
-          --stack-name "$STACK_NAME" \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
-          --output text 2>/dev/null || echo "")
-        
-        if [ -n "$CLOUDFRONT_URL" ] && [ "$CLOUDFRONT_URL" != "None" ]; then
-          echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "### Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-        echo "**Container Image:** $IMAGE_URI" >> $GITHUB_STEP_SUMMARY
-        echo "**API Gateway URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
-        if [ -n "$CLOUDFRONT_URL" ] && [ "$CLOUDFRONT_URL" != "None" ]; then
-          echo "**CloudFront URL:** $CLOUDFRONT_URL" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 **Your application is now live!**" >> $GITHUB_STEP_SUMMARY
+        echo "🌐 App Runner Service URL: $SERVICE_URL"
+        echo "::notice title=Deployment Success::App Runner service deployed at $SERVICE_URL"
 
-    - name: Test deployment
+    - name: Health Check
       run: |
-        API_URL="${{ steps.deployment.outputs.api_url }}"
+        STACK_NAME="finances-next-apprunner-prod"
         
-        if [ -n "$API_URL" ] && [ "$API_URL" != "None" ]; then
-          echo "Testing deployment at: $API_URL"
-          
-          # Wait a moment for Lambda to be ready
-          sleep 10
-          
-          # Test with curl
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" || echo "000")
-          
-          if [ "$HTTP_STATUS" == "200" ]; then
-            echo "✅ Deployment test passed!"
-            echo "🎉 **Deployment Test: PASSED**" >> $GITHUB_STEP_SUMMARY
+        # Get the service URL
+        SERVICE_URL=$(aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query 'Stacks[0].Outputs[?OutputKey==`AppRunnerServiceUrl`].OutputValue' \
+          --output text)
+        
+        # Wait for service to be ready and perform health check
+        echo "⏳ Waiting for service to be ready..."
+        sleep 30
+        
+        HEALTH_URL="${SERVICE_URL}/api/health"
+        echo "🔍 Performing health check at: $HEALTH_URL"
+        
+        # Try health check with retries
+        for i in {1..5}; do
+          if curl -f -s "$HEALTH_URL" > /dev/null; then
+            echo "✅ Health check passed!"
+            curl -s "$HEALTH_URL" | jq '.'
+            break
           else
-            echo "⚠️ Deployment test failed with status: $HTTP_STATUS"
-            echo "⚠️ **Deployment Test: FAILED** (Status: $HTTP_STATUS)" >> $GITHUB_STEP_SUMMARY
+            echo "⏳ Health check attempt $i failed, retrying in 10 seconds..."
+            sleep 10
           fi
-        else
-          echo "⚠️ Could not retrieve API URL for testing"
-          echo "⚠️ **Deployment Test: SKIPPED** (No API URL)" >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: Cleanup
-      if: always()
-      run: |
-        echo "🧹 Container deployment completed"
+          
+          if [ $i -eq 5 ]; then
+            echo "❌ Health check failed after 5 attempts"
+            exit 1
+          fi
+        done
