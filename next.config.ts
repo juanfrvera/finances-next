@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     // CSS optimization should be handled by your bundler (Tailwind, PostCSS, etc.) instead
   },
   
-  // Configure for better AWS deployment
+  // Configure for better container deployment
   trailingSlash: false,
   
   // Security headers

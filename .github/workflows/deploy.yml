@@ -1,182 +1,183 @@
 name: Deploy to Google Cloud Run
 
 on:
-  # Deploy on push to main branch
   push:
     branches: [ main ]
-  
-  # Deploy on pull request merge
   pull_request:
     branches: [ main ]
-    types: [ closed ]
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  GAR_LOCATION: us-central1
-  SERVICE: finances-next
+  SERVICE_NAME: finances-next
   REGION: us-central1
-  REPOSITORY: finances-next
 
 jobs:
   deploy:
+    name: Deploy to Cloud Run
     runs-on: ubuntu-latest
-    environment: production
+    environment: production  # Specify the environment to access environment secrets
     
-    # Only run on merged PRs or direct pushes to main
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-    
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Google Auth
-      id: auth
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests (if any)
+      run: npm test --if-present
+
+    - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
-        service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Cloud SDK
+    - name: Set up Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    - name: Authorize Docker push
-      run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
-
-    - name: Create Artifact Registry repository if it doesn't exist
+    - name: Configure Docker for Artifact Registry
       run: |
-        gcloud artifacts repositories describe ${{ env.REPOSITORY }} \
-          --location=${{ env.GAR_LOCATION }} || \
-        gcloud artifacts repositories create ${{ env.REPOSITORY }} \
+        DOCKER_REGISTRY="${REGION}-docker.pkg.dev"
+        gcloud auth configure-docker "$DOCKER_REGISTRY"
+
+    - name: Create Artifact Registry repository (if not exists)
+      run: |
+        gcloud artifacts repositories create $SERVICE_NAME \
           --repository-format=docker \
-          --location=${{ env.GAR_LOCATION }} \
-          --description="Docker repository for finances-next"
+          --location=$REGION \
+          --description="Docker repository for $SERVICE_NAME" || true
 
-    - name: Build and Push Container
-      run: |-
-        docker build -f deploy/Dockerfile -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" ./
-        docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}"
-
-    - name: Create secrets if they don't exist
+    - name: Build Docker image
       run: |
-        # Check if secrets exist, create if they don't
-        gcloud secrets describe finances-secrets || \
-        gcloud secrets create finances-secrets --data-file=/dev/null
-        
-        # Update secrets with environment variables
-        echo -n "${{ secrets.DB_URL }}" | gcloud secrets versions add finances-secrets --data-file=- || true
-        echo -n "${{ secrets.DB_NAME }}" | gcloud secrets versions add finances-secrets --data-file=- || true
+        DOCKER_REGISTRY="${REGION}-docker.pkg.dev"
+        docker build \
+          -f deploy/Dockerfile.production \
+          -t "$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA" \
+          -t "$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:latest" \
+          .
+
+    - name: Push Docker image
+      run: |
+        DOCKER_REGISTRY="${REGION}-docker.pkg.dev"
+        docker push "$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA"
+        docker push "$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:latest"
 
     - name: Deploy to Cloud Run
-      id: deploy
-      uses: google-github-actions/deploy-cloudrun@v2
-      with:
-        service: ${{ env.SERVICE }}
-        region: ${{ env.REGION }}
-        image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
-        env_vars: |
-          NODE_ENV=production
-          NEXT_TELEMETRY_DISABLED=1
-        secrets: |
-          DB_URL=finances-secrets:latest
-          DB_NAME=finances-secrets:latest
-        flags: |
-          --port=3000
-          --memory=512Mi
-          --cpu=1
-          --min-instances=0
-          --max-instances=3
-          --concurrency=50
-          --timeout=300
-          --ingress=all
-          --allow-unauthenticated
-
-    - name: Show Output
-      run: echo ${{ steps.deploy.outputs.url }}
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
       run: |
-        echo "🔨 Building Docker image..."
-        docker build \
-          -f deploy/Dockerfile \
-          -t $IMAGE_URI \
-          --build-arg DB_URL="${{ secrets.DB_URL }}" \
-          --build-arg DB_NAME="${{ secrets.DB_NAME }}" \
-          .
-        
-        echo "📤 Pushing image to ECR..."
-        docker push $IMAGE_URI
-        
-        echo "✅ Image pushed successfully!"
-        echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+        DOCKER_REGISTRY="${REGION}-docker.pkg.dev"
+        gcloud run deploy $SERVICE_NAME \
+          --image "$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA" \
+          --region $REGION \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars "DB_URL=${{ secrets.DB_URL }}" \
+          --set-env-vars "DB_NAME=${{ secrets.DB_NAME }}" \
+          --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+          --set-env-vars "NODE_ENV=production" \
+          --memory 512Mi \
+          --cpu 1 \
+          --max-instances 5 \
+          --port 3000
 
-    - name: Deploy App Runner Service
+    - name: Cleanup old images
       run: |
-        echo "🚀 Starting App Runner deployment..."
+        DOCKER_REGISTRY="${REGION}-docker.pkg.dev"
+        IMAGE_REPO="$DOCKER_REGISTRY/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME"
         
-        STACK_NAME="finances-next-apprunner-prod"
-        TEMPLATE_FILE="deploy/apprunner-template.yaml"
+        echo "Cleaning up old Docker images..."
+        echo "Repository: $IMAGE_REPO"
         
-        echo "🔄 Deploying App Runner service..."
-        aws cloudformation deploy \
-          --template-file $TEMPLATE_FILE \
-          --stack-name $STACK_NAME \
-          --parameter-overrides \
-            ContainerImageUri="${{ env.IMAGE_URI }}" \
-            DBUrl="${{ secrets.DB_URL }}" \
-            DBName="${{ secrets.DB_NAME }}" \
-            Environment=prod \
-            MaxInstances=1 \
-          --capabilities CAPABILITY_IAM \
-          --region ${{ env.AWS_REGION }}
-
-    - name: Get App Runner Service URL
-      run: |
-        STACK_NAME="finances-next-apprunner-prod"
+        # Get all tags sorted by update time (newest first)
+        echo "Getting all tags..."
+        gcloud artifacts docker tags list "$IMAGE_REPO" \
+          --format="table(tag,digest,updateTime)" \
+          --sort-by="~UPDATE_TIME"
         
-        # Get the service URL from CloudFormation outputs
-        SERVICE_URL=$(aws cloudformation describe-stacks \
-          --stack-name $STACK_NAME \
-          --query 'Stacks[0].Outputs[?OutputKey==`AppRunnerServiceUrl`].OutputValue' \
-          --output text)
+        # Get only commit SHA tags (exclude 'latest'), sorted by update time (newest first)
+        ALL_SHA_TAGS=$(gcloud artifacts docker tags list "$IMAGE_REPO" \
+          --format="value(tag)" \
+          --sort-by="~UPDATE_TIME" | grep -v '^latest$')
         
-        echo "🌐 App Runner Service URL: $SERVICE_URL"
-        echo "::notice title=Deployment Success::App Runner service deployed at $SERVICE_URL"
-
-    - name: Health Check
-      run: |
-        STACK_NAME="finances-next-apprunner-prod"
+        echo "All SHA tags found (excluding 'latest'), newest first:"
+        echo "$ALL_SHA_TAGS"
         
-        # Get the service URL
-        SERVICE_URL=$(aws cloudformation describe-stacks \
-          --stack-name $STACK_NAME \
-          --query 'Stacks[0].Outputs[?OutputKey==`AppRunnerServiceUrl`].OutputValue' \
-          --output text)
+        # Get the digest that 'latest' points to
+        LATEST_DIGEST=$(gcloud artifacts docker tags list "$IMAGE_REPO" \
+          --format="value(digest)" \
+          --filter="tag=latest")
         
-        # Wait for service to be ready and perform health check
-        echo "⏳ Waiting for service to be ready..."
-        sleep 30
+        echo "Latest tag points to digest: $LATEST_DIGEST"
         
-        HEALTH_URL="${SERVICE_URL}/api/health"
-        echo "🔍 Performing health check at: $HEALTH_URL"
+        # Find which SHA tag points to the same digest as 'latest'
+        CURRENT_SHA_TAG=""
+        if [ -n "$LATEST_DIGEST" ]; then
+          CURRENT_SHA_TAG=$(gcloud artifacts docker tags list "$IMAGE_REPO" \
+            --format="value(tag)" \
+            --filter="digest=$LATEST_DIGEST AND tag!=latest" | head -1)
+          echo "Current SHA tag (same as latest): $CURRENT_SHA_TAG"
+        fi
         
-        # Try health check with retries
-        for i in {1..5}; do
-          if curl -f -s "$HEALTH_URL" > /dev/null; then
-            echo "✅ Health check passed!"
-            curl -s "$HEALTH_URL" | jq '.'
-            break
-          else
-            echo "⏳ Health check attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          fi
+        # Count SHA tags
+        TOTAL_SHA_TAGS=$(echo "$ALL_SHA_TAGS" | grep -v '^$' | wc -l)
+        echo "Total SHA tags (excluding 'latest'): $TOTAL_SHA_TAGS"
+        
+        if [ "$TOTAL_SHA_TAGS" -le 2 ]; then
+          echo "No cleanup needed - only $TOTAL_SHA_TAGS SHA tags total (keeping all, plus 'latest')"
+        else
+          echo "Need to delete old SHA tags (keeping current SHA + 1 previous SHA + 'latest')..."
           
-          if [ $i -eq 5 ]; then
-            echo "❌ Health check failed after 5 attempts"
-            exit 1
+          # Get SHA tags to delete (exclude current SHA tag and keep only 1 previous)
+          SHA_TAGS_TO_DELETE=""
+          TAGS_KEPT=0
+          
+          # Process tags outside subshell to preserve variables
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              if [ "$tag" = "$CURRENT_SHA_TAG" ]; then
+                echo "Keeping current SHA tag: $tag (same image as latest)"
+              elif [ $TAGS_KEPT -lt 1 ]; then
+                echo "Keeping previous SHA tag: $tag"
+                TAGS_KEPT=$((TAGS_KEPT + 1))
+              else
+                echo "Will delete old SHA tag: $tag"
+                if [ -z "$SHA_TAGS_TO_DELETE" ]; then
+                  SHA_TAGS_TO_DELETE="$tag"
+                else
+                  SHA_TAGS_TO_DELETE="$SHA_TAGS_TO_DELETE"$'\n'"$tag"
+                fi
+              fi
+            fi
+          done <<< "$ALL_SHA_TAGS"
+          
+          if [ -n "$SHA_TAGS_TO_DELETE" ]; then
+            echo "SHA tags to delete:"
+            echo "$SHA_TAGS_TO_DELETE"
+            
+            # Delete old SHA tags one by one
+            echo "$SHA_TAGS_TO_DELETE" | while IFS= read -r tag; do
+              if [ -n "$tag" ] && [ "$tag" != "" ]; then
+                echo "Deleting old SHA tag: $tag"
+                if gcloud artifacts docker tags delete "$IMAGE_REPO:$tag" --quiet; then
+                  echo "✅ Successfully deleted tag: $tag"
+                else
+                  echo "❌ Failed to delete tag: $tag"
+                fi
+              fi
+            done
+          else
+            echo "No SHA tags to delete"
           fi
-        done
+        fi
+
+    - name: Show service URL
+      run: |
+        echo "Service deployed successfully!"
+        gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)"
