@@ -7,9 +7,9 @@ on:
     branches: [ main ]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   SERVICE_NAME: finances-next
-  REGION: us-central1
+  REGION: ${{ vars.GCP_REGION }}
 
 jobs:
   deploy:
@@ -41,7 +41,7 @@ jobs:
     - name: Set up Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
       with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        project_id: ${{ vars.GCP_PROJECT_ID }}
 
     - name: Configure Docker for Artifact Registry
       run: |
