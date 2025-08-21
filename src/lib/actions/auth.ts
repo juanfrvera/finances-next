@@ -271,21 +271,6 @@ export async function getCurrentUser(): Promise<{ id: string; username: string; 
 
 // Helper function to verify authentication and redirect if needed
 export async function requireAuth(): Promise<{ id: string; username: string; email: string }> {
-    // In development mode, use TEST_USER_ID if no authentication is set up
-    if (process.env.TEST_USER_ID) {
-        const user = await getCurrentUser();
-        if (!user) {
-            // Return a mock user for development
-            return {
-                id: process.env.TEST_USER_ID,
-                username: "testuser",
-                email: "test@example.com"
-            };
-        }
-        return user;
-    }
-
-    // In production, require proper authentication
     const user = await getCurrentUser();
     if (!user) {
         redirect("/login");
@@ -341,28 +326,12 @@ export async function getServerComponentUser(): Promise<{ id: string; username: 
         const token = cookieStore.get(COOKIE_NAME)?.value;
 
         if (!token) {
-            // In development mode, return test user if configured
-            if (process.env.TEST_USER_ID) {
-                return {
-                    id: process.env.TEST_USER_ID,
-                    username: "testuser",
-                    email: "test@example.com"
-                };
-            }
             return null;
         }
 
         return await getUserFromToken(token);
     } catch (error) {
         console.error("Get server component user error:", error);
-        // In development mode, return test user if configured
-        if (process.env.TEST_USER_ID) {
-            return {
-                id: process.env.TEST_USER_ID,
-                username: "testuser",
-                email: "test@example.com"
-            };
-        }
         return null;
     }
 }
